@@ -1,0 +1,738 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{array}
+
+\definecolor{defblue}{RGB}{0, 73, 144}
+\definecolor{exgreen}{RGB}{0, 100, 0}
+\definecolor{warnred}{RGB}{180, 30, 30}
+\definecolor{notegray}{RGB}{80, 80, 80}
+\definecolor{lightbg}{RGB}{245, 247, 250}
+\definecolor{purp}{RGB}{100, 0, 140}
+\definecolor{teal}{RGB}{0, 110, 110}
+
+\tcbuselibrary{skins, breakable}
+\newtcolorbox{defbox}[1][]{colback=blue!3, colframe=defblue, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{exbox}[1][]{colback=green!3, colframe=exgreen, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{warnbox}[1][]{colback=red!3, colframe=warnred, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{notebox}[1][]{colback=lightbg, colframe=notegray, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{mathbox}[1][]{colback=purp!3, colframe=purp, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{notegray}{CME 295 -- Lecture 4 Study Guide}}
+\fancyhead[R]{\small\textcolor{notegray}{LLM Training, FlashAttention, SFT, LoRA}}
+\fancyfoot[C]{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{defblue}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{defblue!80}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{defblue!60}}{}{0em}{}
+
+\hypersetup{colorlinks=true, linkcolor=defblue, urlcolor=defblue!80}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries\color{defblue} Comprehensive Study Guide}\\[6pt]
+{\Large CME 295: Transformers \& LLMs --- Lecture 4}\\[4pt]
+{\normalsize Pre-Training, Training Optimizations, SFT, Evaluation, LoRA, QLoRA}\\[4pt]
+{\small Stanford CME 295 by Afshine \& Shervine Amidi $\cdot$ For: Applied AI/ML Engineers}\\[2pt]
+\rule{\textwidth}{0.4pt}
+\end{center}
+
+\tableofcontents
+\newpage
+
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Topic Map}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=2em]
+  \item \textbf{LLM Training Paradigm}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Transfer learning vs.\ training from scratch
+      \item Two-stage pipeline: pre-training $\to$ tuning
+    \end{enumerate}
+
+  \item \textbf{Pre-Training}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Objective: next-token prediction
+      \item Data mixtures: Common Crawl, Wikipedia, GitHub, StackOverflow
+      \item Scale: trillions of tokens; GPT-3 (300B), LLaMA 3 (15T)
+      \item FLOPs vs.\ FLOP/s notation
+      \item Scaling laws (Kaplan et al., 2020): bigger model, more data, more compute = better
+      \item Sample efficiency: bigger models learn faster per token
+      \item Chinchilla law (Hoffmann et al., 2022): optimal tokens $\approx 20\times$ parameters
+      \item Challenges: cost, knowledge cutoff, knowledge editing, plagiarism
+    \end{enumerate}
+
+  \item \textbf{Training Optimizations}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Memory bottleneck: activations, gradients, optimizer states, parameters
+      \item Adam optimizer: first and second moments
+      \item Data parallelism: dividing batches across GPUs
+      \item ZeRO (Zero Redundancy Optimization): ZeRO-1, -2, -3
+      \item Model parallelism: tensor, pipeline, expert, sequence, context
+      \item FlashAttention: HBM vs.\ SRAM, tiling, softmax decomposition trick
+      \item FlashAttention backward: activation recomputation
+      \item Floating-point formats: FP32, FP16, BF16, FP64
+      \item Mixed precision training: low-precision forward/backward, high-precision weight update
+    \end{enumerate}
+
+  \item \textbf{Supervised Fine-Tuning (SFT)}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item SFT definition and objective (loss only on output, not input)
+      \item Instruction tuning as special case
+      \item Data mixture: assistant dialogues, math/reasoning/code, safety
+      \item Data scale: thousands to millions of examples (vs.\ trillions of tokens for pre-training)
+      \item Alignment: SFT + preference tuning
+      \item Mid-training (emerging concept)
+    \end{enumerate}
+
+  \item \textbf{Evaluation}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Standard benchmarks: MMLU, ARC-Challenge, GSM8K, HumanEval
+      \item ``Training on the test task'' confound
+      \item Chatbot Arena / LMArena: A/B testing, ELO-style ranking
+      \item Limitations of all evaluation methods
+    \end{enumerate}
+
+  \item \textbf{Parameter-Efficient Fine-Tuning (PEFT)}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item LoRA: low-rank decomposition, $W = W_0 + BA$, rank $r$
+      \item LoRA placement: attention originally, FFN is most impactful
+      \item LoRA training dynamics: higher LR, poor large-batch behavior
+      \item Task-switching via LoRA adapter swap
+      \item QLoRA: quantized $W_0$ (NF4) + LoRA in BF16
+      \item NF4: normal-quantile-based bucketing
+      \item Double quantization: quantize the quantization constants
+    \end{enumerate}
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Deep-Dive Notes}
+%═══════════════════════════════════════════════════════════════════════════════
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{The LLM Training Paradigm}
+%───────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[Transfer Learning]
+Instead of training a model from scratch for each task, start from a model pre-trained on vast data, then adapt its weights for the target task. The pre-trained model encodes general knowledge that transfers across tasks, dramatically reducing data and compute requirements for the downstream task.
+\end{defbox}
+
+The LLM pipeline has two stages:
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Pre-training:} Train on massive unlabeled text to learn general language/code patterns.
+  \item \textbf{Tuning:} Adapt the pre-trained model for specific tasks (SFT, then preference tuning).
+\end{enumerate}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Pre-Training}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Objective and Data}
+
+\begin{defbox}[Pre-Training Objective]
+Train a decoder-only Transformer on next-token prediction over enormous unlabeled corpora. The model receives a sequence of tokens and must predict the next token at each position (teacher forcing during training). Loss is computed over all positions.
+\end{defbox}
+
+\textbf{Data mixtures:} Web-scraped text (Common Crawl: $\sim$3 billion pages/month), Wikipedia, books, code (GitHub, StackOverflow), multilingual content, scientific papers. The goal is to expose the model to every pattern of language and code that exists.
+
+\begin{table}[h]
+\centering
+\caption{Pre-Training Scale Examples}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Model} & \textbf{Parameters} & \textbf{Training Tokens} \\
+\midrule
+GPT-3 & 175B & 300 billion \\
+LLaMA 3 & Various & 15 trillion \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{FLOPs vs.\ FLOP/s}
+
+\begin{defbox}[FLOPs and FLOP/s]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{FLOPs} (floating-point operations): a measure of \emph{total compute} required. Training a large LLM requires $\sim 10^{25}$ FLOPs. Roughly proportional to $\text{params} \times \text{tokens}$.
+  \item \textbf{FLOP/s} (floating-point operations per second): a measure of \emph{hardware speed}. An H100 GPU delivers $\sim$989 TFLOP/s at FP16. More FLOP/s = faster training.
+\end{itemize}
+\textbf{Memory aid:} FLOPs = ``how much work?'' FLOP/s = ``how fast can we work?''
+\end{defbox}
+
+\begin{warnbox}[Notation Confusion]
+The literature sometimes uses ``FLOPs'' for both. Always contextualize: if the sentence is about a training run or cost, it means total FLOPs. If describing GPU specs, it means FLOP/s.
+\end{warnbox}
+
+\subsubsection{Scaling Laws (Kaplan et al., 2020)}
+
+\begin{defbox}[Neural Scaling Laws]
+Model performance (measured by loss on next-token prediction) follows power-law relationships with:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Model size} (parameters $N$): larger models achieve lower loss.
+  \item \textbf{Training data size} (tokens $D$): more data achieves lower loss.
+  \item \textbf{Compute budget} (FLOPs $C$): more compute achieves lower loss.
+\end{itemize}
+These relationships hold smoothly over many orders of magnitude. ``Bigger is better'' drove rapid scaling from 2019--2024.
+\end{defbox}
+
+\begin{defbox}[Sample Efficiency]
+Larger models require \emph{fewer tokens} to reach a given loss level. For the same number of training tokens, a larger model achieves better performance than a smaller one.
+\end{defbox}
+
+\subsubsection{Chinchilla Law (Hoffmann et al., 2022)}
+
+\begin{mathbox}[Chinchilla Optimal Compute Allocation]
+Given a fixed compute budget $C$, the optimal allocation is:
+\[
+D_{\text{optimal}} \approx 20 \times N_{\text{optimal}}
+\]
+where $N$ = parameters and $D$ = training tokens. In other words, \textbf{for every parameter, train on $\sim$20 tokens}.
+
+Implication: GPT-3 (175B parameters, 300B tokens) was \emph{undertrained} --- optimal would require $\sim$3.5 trillion tokens. Models should be smaller but trained longer to reach the same compute-optimality.
+\end{mathbox}
+
+\begin{notebox}[How Companies Use Chinchilla]
+In practice, companies run scaling law experiments on smaller models (cheap) and extrapolate. LLaMA 3 includes an analysis justifying its parameter/token choices. The ratio also depends on architecture (MoE uses fewer active FLOPs per token) and precision.
+\end{notebox}
+
+\subsubsection{Pre-Training Challenges}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Cost:} Minimum millions of dollars; frontier models cost hundreds of millions. Environmental impact is significant.
+  \item \textbf{Knowledge cutoff:} The model knows only about events up to the data collection date. No way to know post-cutoff events from weights alone.
+  \item \textbf{Knowledge editing:} Injecting new knowledge into weights without degrading other capabilities is an open research problem.
+  \item \textbf{Plagiarism/memorization:} Models can reproduce training data verbatim, raising copyright concerns.
+\end{itemize}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Training Optimizations}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{What Must Be Stored in GPU Memory During Training}
+
+A single forward+backward pass requires storing:
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Model parameters} ($W$): FP32 = 4 bytes/param; for 70B params $\approx$ 280 GB.
+  \item \textbf{Activations:} Intermediate layer outputs needed for gradient computation. Size $\propto$ model depth $\times$ batch size $\times$ sequence length.
+  \item \textbf{Gradients} ($\nabla W$): Same size as parameters.
+  \item \textbf{Optimizer states:} Adam stores first moment $m$ and second moment $v$ per parameter --- 2$\times$ the parameter count, also in FP32.
+\end{enumerate}
+
+\begin{mathbox}[Adam Optimizer Memory]
+Adam maintains:
+\[
+m_t = \beta_1 m_{t-1} + (1-\beta_1) g_t \quad \text{(first moment, EMA of gradients)}
+\]
+\[
+v_t = \beta_2 v_{t-1} + (1-\beta_2) g_t^2 \quad \text{(second moment, EMA of squared gradients)}
+\]
+\[
+W_{t+1} = W_t - \alpha \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
+\]
+For 70B-param model in FP32: parameters (280 GB) + gradients (280 GB) + optimizer states (560 GB) $\approx$ 1.1 TB. A single H100 has 80 GB --- you need at least 14 GPUs just for this.
+\end{mathbox}
+
+\subsubsection{Data Parallelism and ZeRO}
+
+\begin{defbox}[Data Parallelism (DP)]
+Divide each training batch across $K$ GPUs. Each GPU holds a \emph{full copy} of the model and processes its local mini-batch independently. Gradients are averaged across GPUs after the backward pass (all-reduce communication). Memory per GPU is unchanged; throughput scales with $K$.
+\end{defbox}
+
+\begin{defbox}[ZeRO: Zero Redundancy Optimization (Rajbhandari et al., 2019)]
+Eliminates redundant storage across GPUs by sharding the model state across $K$ devices:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{ZeRO-1:} Shard optimizer states only. Memory $\approx$ 4$\times$ reduction at $K$ GPUs.
+  \item \textbf{ZeRO-2:} Shard optimizer states + gradients. Memory $\approx$ 8$\times$ reduction.
+  \item \textbf{ZeRO-3:} Shard optimizer states + gradients + parameters. Memory $\approx K$-fold reduction. Each GPU holds $1/K$ of the model; parameters are gathered on demand.
+\end{itemize}
+Trade-off: each ZeRO stage incurs more inter-GPU communication (all-gather, reduce-scatter) to reconstruct sharded tensors during forward/backward.
+\end{defbox}
+
+\subsubsection{Model Parallelism}
+
+\begin{defbox}[Model Parallelism]
+Splits the model itself (not just the data) across GPUs. Key variants:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Tensor Parallelism (TP):} Split large matrix multiplications across GPUs (e.g., Megatron-LM splits attention heads across devices).
+  \item \textbf{Pipeline Parallelism (PP):} Assign different layers to different GPUs. GPU 1 handles layers 1--8, GPU 2 handles layers 9--16, etc. Micro-batching reduces ``pipeline bubbles.''
+  \item \textbf{Expert Parallelism (EP):} In MoE models, place each expert on a separate GPU. Tokens are routed to the correct GPU.
+  \item \textbf{Sequence/Context Parallelism:} Split the sequence dimension across GPUs for very long contexts.
+\end{itemize}
+In practice, large-scale training combines DP + TP + PP (3D parallelism). Reference: HuggingFace's ``Ultra-Scale Playbook.''
+\end{defbox}
+
+\subsubsection{FlashAttention (Dao et al., 2022)}
+
+\begin{defbox}[GPU Memory Hierarchy]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{HBM (High-Bandwidth Memory):} Large ($\sim$80 GB on H100) but relatively slow ($\sim$2--3 TB/s). Persistent GPU memory.
+  \item \textbf{SRAM (on-chip):} Small ($\sim$20--40 MB on H100) but very fast ($\sim$20--40 TB/s). Located next to the compute units (CUDA cores / tensor cores).
+\end{itemize}
+Standard attention is memory-bandwidth-bound: the bottleneck is reading/writing $Q, K, V, S, P, O$ to/from HBM, not the FLOP count itself.
+\end{defbox}
+
+\begin{defbox}[Standard Attention Memory Access Pattern]
+For inputs $Q, K \in \mathbb{R}^{n \times d_k}$ and $V \in \mathbb{R}^{n \times d_v}$:
+\begin{enumerate}[leftmargin=1.5em]
+  \item Load $Q, K$ from HBM $\to$ compute $S = QK^\top / \sqrt{d_k}$ $\to$ write $S \in \mathbb{R}^{n \times n}$ to HBM.
+  \item Load $S$ from HBM $\to$ compute $P = \text{softmax}(S)$ $\to$ write $P$ to HBM.
+  \item Load $P, V$ from HBM $\to$ compute $O = PV$ $\to$ write $O$ to HBM.
+\end{enumerate}
+Total HBM accesses: $O(n^2)$. For $n=4096$, this is the bottleneck.
+\end{defbox}
+
+\begin{defbox}[FlashAttention: Tiling and Online Softmax]
+\textbf{Key idea:} Process attention in blocks that fit in SRAM. Avoid materializing $S$ and $P$ in HBM entirely.
+
+\textbf{Tiling:} Divide $Q, K, V$ into blocks. For each pair of $Q$-block and $K$-block, compute the attention contribution and accumulate into $O$, then move to the next block. The full $n \times n$ matrix $S$ is never written to HBM.
+
+\textbf{Online softmax trick:} Softmax is row-wise: $P_{ij} = \exp(S_{ij}) / \sum_k \exp(S_{ik})$. The denominator requires seeing the full row. However, softmax can be computed incrementally:
+\[
+\text{softmax}([S_1, S_2]) = \frac{\exp(S_1) + \exp(S_2)}{\exp(m) \cdot \text{const}}
+\]
+where $m = \max(S_1, S_2)$ is a running maximum. Each block adjusts the accumulated output with a rescaling factor, producing the exact same result as standard attention.
+
+\textbf{Result:} HBM accesses reduced from $O(n^2)$ to $O(n)$. Runtime reduced $\sim$3--8$\times$ for typical sequence lengths.
+\end{defbox}
+
+\begin{defbox}[FlashAttention Backward Pass: Activation Recomputation]
+Standard backward pass stores the attention matrix $P \in \mathbb{R}^{n \times n}$ from the forward pass to compute gradients. FlashAttention recomputes $P$ during the backward pass using the same tiling trick rather than storing it.
+
+\textbf{Counterintuitive result:} Recomputing costs more FLOPs, but the backward pass is still faster because the HBM bandwidth savings dominate. Both memory \emph{and} runtime improve simultaneously.
+\end{defbox}
+
+\subsubsection{Floating-Point Representations}
+
+\begin{table}[h]
+\centering
+\caption{Floating-Point Format Comparison}
+\begin{tabular}{@{}lcccp{4cm}@{}}
+\toprule
+\textbf{Format} & \textbf{Sign} & \textbf{Exponent} & \textbf{Mantissa} & \textbf{Notes} \\
+\midrule
+FP64 & 1 & 11 & 52 & Maximum precision; very slow on GPU \\
+FP32 & 1 & 8 & 23 & Standard training precision \\
+BF16 & 1 & 8 & 7 & Same range as FP32; preferred over FP16 for training \\
+FP16 & 1 & 5 & 10 & Smaller range; risk of overflow \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{notebox}[Why BF16 over FP16 for Training?]
+BF16 has the same 8-bit exponent as FP32, giving it the same \emph{dynamic range}. This makes overflow/underflow rare during training. FP16's smaller exponent (5 bits) makes it prone to numerical instability. BF16 mantissa (7 bits) is less precise than FP16 (10 bits), but this matters less for training than dynamic range. Most modern LLM training uses BF16.
+\end{notebox}
+
+\subsubsection{Mixed Precision Training}
+
+\begin{defbox}[Mixed Precision Training (Micikevicius et al., 2017)]
+Use different precisions for different operations:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Forward pass:} Activations in FP16/BF16. Faster GEMM operations; lower memory.
+  \item \textbf{Backward pass:} Gradient updates in FP16/BF16.
+  \item \textbf{Weight update:} Master weights stored in FP32. The update $W \mathrel{{+}{=}} \alpha g$ is applied in FP32.
+\end{itemize}
+\textbf{Why keep weights in FP32?} Accumulated gradient updates can be very small. Low-precision arithmetic would cause updates below the minimum representable value to be rounded to zero, halting learning.
+\end{defbox}
+
+H100 compute speed: FP64 = 34 TFLOP/s, FP32 = 67 TFLOP/s, FP16/BF16 = 989 TFLOP/s (with sparsity). Lower precision $\approx$ 15$\times$ speedup.
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Supervised Fine-Tuning (SFT)}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Definition and Motivation}
+
+\begin{defbox}[Supervised Fine-Tuning (SFT)]
+After pre-training, the model generates plausible text continuations but is not helpful as an assistant --- it completes prompts rather than answering them. SFT trains the model on labeled (input, output) pairs to change its behavior.
+
+\textbf{Objective:} Next-token prediction, but the loss is computed \emph{only on the output tokens}, not the input. The input is given (conditioned on), not predicted.
+\end{defbox}
+
+\begin{exbox}[SFT Loss Masking]
+Input prompt: \texttt{[BOS] Can I put my teddy bear in the washer?}\\
+Target output: \texttt{No, it might get damaged. Try hand washing instead.}
+
+During SFT, loss is computed only on the output tokens (green). The input tokens are not used in the loss calculation --- we don't want the model to ``learn to ask the question,'' only to generate the answer given the question.
+\end{exbox}
+
+\subsubsection{Instruction Tuning}
+
+\begin{defbox}[Instruction Tuning]
+A special case of SFT where the training data consists of (instruction, response) pairs that teach the model to follow natural language instructions. This ``graduates'' the pre-trained model to being a helpful assistant. Key data categories:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Assistant dialogues:} Story writing, list generation, explanation, Q\&A.
+  \item \textbf{Synthetic instructions:} Generated by existing LLMs, reviewed by humans.
+  \item \textbf{Math, reasoning, code:} High-quality problem-solution pairs.
+  \item \textbf{Safety alignment:} Examples of refusals, hedging, and harm avoidance.
+\end{itemize}
+\end{defbox}
+
+\begin{table}[h]
+\centering
+\caption{SFT Data Scale vs.\ Pre-Training}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Model} & \textbf{Pre-Training} & \textbf{SFT Examples} & \textbf{Approx.\ SFT Tokens} \\
+\midrule
+GPT-3 & 300B tokens & 13K examples & $\sim$13M tokens \\
+LLaMA 3 & 15T tokens & 10M examples & $\sim$10B tokens \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+SFT data is \textbf{4--5 orders of magnitude smaller} than pre-training data, but must be \textbf{very high quality}. Pre-training teaches language; SFT teaches behavior.
+
+\subsubsection{Alignment}
+
+\begin{defbox}[Alignment]
+The process of making an LLM's behavior consistent with human values and intentions. Consists of two stages:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{SFT (Supervised Fine-Tuning):} Teach helpful, harmless behavior via labeled examples.
+  \item \textbf{Preference Tuning (e.g., RLHF/DPO):} Further shape behavior using human preference signals. Covered in Lecture 5.
+\end{enumerate}
+An emerging additional stage called \textbf{mid-training} (between pre-training and SFT) uses the pre-training objective but on domain-specific, higher-quality data to bridge the gap.
+\end{defbox}
+
+\subsubsection{SFT Challenges}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Data quality:} High-quality SFT data requires significant human effort or strong LLM-generated + human-reviewed pipelines.
+  \item \textbf{Prompt distribution sensitivity:} The model generalizes well to prompts similar to training distribution but may struggle with out-of-distribution queries.
+  \item \textbf{Generalization:} The model must learn the concept (e.g., ``write a story'') not just memorize examples.
+  \item \textbf{Evaluation difficulty:} Subjective quality is hard to quantify.
+  \item \textbf{Computational cost:} Fine-tuning even a medium-sized model requires significant GPU resources.
+\end{itemize}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Evaluation of LLMs}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Standard Benchmarks}
+
+\begin{table}[h]
+\centering
+\caption{Major LLM Evaluation Benchmarks}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Benchmark} & \textbf{What It Measures} & \textbf{Format} \\
+\midrule
+MMLU & General knowledge (57 subjects) & Multiple choice \\
+ARC-Challenge & Grade-school science reasoning & Multiple choice \\
+GSM8K & Grade-school math word problems & Open-ended generation \\
+HumanEval & Code generation & Pass@$k$ on test cases \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{warnbox}[The ``Training on the Test Task'' Confound]
+If a model is trained on data from the same \emph{domain} as a benchmark (e.g., math reasoning data for GSM8K), it will score higher regardless of general capability improvement. Benchmark scores are only comparable across models if both were either trained on the test task or both were not. (Dominguez-Olmedo et al., 2024)
+\end{warnbox}
+
+\subsubsection{Human Evaluation: Chatbot Arena / LMArena}
+
+\begin{defbox}[Chatbot Arena]
+A crowd-sourced evaluation platform where users submit real queries and are shown two anonymous model responses (A/B test). They vote for the better response. ELO-style ranking aggregates pairwise comparisons into a leaderboard.
+
+\textbf{Benefits:} Reflects real user experience; not tied to specific benchmark formats; covers a broad distribution of prompts.
+\end{defbox}
+
+\begin{warnbox}[Limitations of Chatbot Arena]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Cold start problem:} New models are paired with few other models initially; early matchups disproportionately influence final ELO.
+  \item \textbf{Riggable:} An adversarial player could detect which model they're rating (e.g., by asking ``who are you?'') and selectively upvote specific models.
+  \item \textbf{Factuality blind spot:} Users often cannot assess factual accuracy for complex topics.
+  \item \textbf{Non-representative raters:} The voting population (technical users, enthusiasts) differs from the general user base.
+  \item \textbf{Safety penalization:} Users tend to prefer responses over refusals, even when refusal is the correct behavior.
+\end{itemize}
+\textbf{Takeaway:} No single evaluation method captures all dimensions. Use multiple: benchmarks + human eval + domain-specific testing.
+\end{warnbox}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Parameter-Efficient Fine-Tuning (PEFT)}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{LoRA: Low-Rank Adaptation (Hu et al., 2021)}
+
+\begin{defbox}[LoRA]
+Instead of updating the full weight matrix $W \in \mathbb{R}^{d \times k}$ during fine-tuning, decompose the update as a product of two low-rank matrices:
+\[
+W = W_0 + \Delta W = W_0 + B A
+\]
+where $W_0 \in \mathbb{R}^{d \times k}$ is the \textbf{frozen} pre-trained weight, $B \in \mathbb{R}^{d \times r}$ and $A \in \mathbb{R}^{r \times k}$ are the \textbf{trained} LoRA matrices, and $r \ll \min(d, k)$ is the \textbf{rank} (typically 4--64).
+
+During the forward pass:
+\[
+\mathbf{h} = W_0 \mathbf{x} + B A \mathbf{x} = W_0 \mathbf{x} + \Delta W \mathbf{x}
+\]
+Only $B$ and $A$ require gradients. $W_0$ gradients are never computed.
+\end{defbox}
+
+\begin{mathbox}[Parameter Count Reduction]
+Full fine-tuning trains $d \times k$ parameters. LoRA trains $r \times d + r \times k = r(d + k)$ parameters.
+
+Example: $d = k = 4096$, $r = 8$:
+\begin{itemize}[leftmargin=1.5em]
+  \item Full: $4096^2 = 16.7$M parameters
+  \item LoRA: $8 \times (4096 + 4096) = 65.5$K parameters
+  \item Reduction: $\approx 250\times$
+\end{itemize}
+\end{mathbox}
+
+\begin{notebox}[Task Switching with LoRA]
+The pre-trained $W_0$ is shared across tasks. For each task, train a separate $(B, A)$ pair. At inference time, load $W_0$ once and swap LoRA adapters to switch tasks instantly. This enables efficient multi-task serving from a single base model.
+\end{notebox}
+
+\begin{notebox}[Where to Apply LoRA]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Original paper:} Applied to attention projection matrices ($W_Q, W_K, W_V, W_O$).
+  \item \textbf{Current guidance} (``LoRA Without Regret,'' Schulman et al., 2025): FFN blocks provide the most performance improvement per added parameter. In practice, apply LoRA to both attention and FFN, with most impact in FFN.
+\end{itemize}
+\end{notebox}
+
+\begin{warnbox}[LoRA Training Dynamics (empirical)]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Higher learning rate needed:} LoRA converges better with $\sim$10$\times$ higher LR than full fine-tuning. Hypothesis: the low-rank constraint forces the optimizer to explore a restricted subspace that requires larger steps.
+  \item \textbf{Large batch size hurts:} LoRA underperforms full fine-tuning at large batch sizes. Hypothesis: the training dynamics of matrix products $BA$ differ from single matrices; larger batches may flatten useful gradient directions.
+\end{itemize}
+\end{warnbox}
+
+\subsubsection{QLoRA: Quantized LoRA (Dettmers et al., 2023)}
+
+\begin{defbox}[QLoRA]
+Combine quantization of $W_0$ with LoRA fine-tuning of $B, A$:
+\begin{itemize}[leftmargin=1.5em]
+  \item $W_0$: Quantized to 4-bit NF4 format (stored quantized, dramatically reducing VRAM).
+  \item $B, A$: Stored and computed in BF16 (full precision).
+  \item Forward pass computation: dequantize $W_0$ to BF16 on the fly, compute $W_0\mathbf{x}$, add $BA\mathbf{x}$.
+\end{itemize}
+Result: enables fine-tuning of LLaMA 65B on a single 48GB GPU; reported $\sim$16$\times$ VRAM savings.
+\end{defbox}
+
+\begin{defbox}[NF4: 4-bit NormalFloat]
+Standard INT8 quantization divides the numeric range into \textbf{uniform buckets}. NF4 instead uses \textbf{quantile-based bucketing} based on the assumption that weight values follow a normal distribution.
+
+For a normal distribution, quantile-based buckets place roughly equal numbers of values in each bin, minimizing quantization error (since most values cluster near zero). This is more efficient than uniform buckets where the outlier regions waste precision.
+\end{defbox}
+
+\begin{defbox}[Double Quantization]
+Standard quantization requires per-block \textbf{quantization constants} (e.g., scale factors) that must be stored in full precision. QLoRA applies a second round of quantization to these constants themselves, saving an additional $\sim$6\% memory. The effect is small but meaningful at scale.
+\end{defbox}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Related Concepts You Should Also Know}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{AdamW (Loshchilov \& Hutter, 2017):} The standard variant of Adam used for LLM training. Adds decoupled weight decay: rather than including weight decay in the gradient update (which interacts poorly with Adam's normalization), it applies weight decay directly to the weights after the Adam step. Helps generalization and prevents weight explosion.
+
+  \item \textbf{Learning Rate Schedule:} LLM training typically uses a \textbf{warmup} phase (linear increase from 0 to peak LR over the first few thousand steps) followed by \textbf{cosine decay}. Warmup prevents early instability from large gradient magnitudes at initialization.
+
+  \item \textbf{Gradient Clipping:} Cap the gradient norm to a maximum value (e.g., 1.0) to prevent exploding gradients during training. Especially important for long sequences and deep models.
+
+  \item \textbf{Epoch vs.\ Token Count:} LLM pre-training is typically described in \emph{tokens processed}, not epochs. The training set is so large that the model may see each document only once (``epoch $\approx 1$''). This is fundamentally different from supervised ML where multiple epochs are standard.
+
+  \item \textbf{FSDP (Fully Sharded Data Parallel):} PyTorch's implementation of ZeRO-3-like sharding. Standard for training large models in PyTorch. DeepSpeed is another common framework that implements ZeRO.
+
+  \item \textbf{Prefix Tuning and Adapters:} Two other PEFT methods mentioned briefly in the lecture. Prefix tuning prepends trainable vectors to the attention key/value sequences. Adapters insert small bottleneck layers between Transformer sublayers. Both are less commonly used than LoRA in practice.
+
+  \item \textbf{LoRA Rank Selection:} Common values: $r \in \{4, 8, 16, 32\}$. Higher rank = more parameters = more expressive but more expensive. For most tasks, $r=8$ or $r=16$ is a good starting point. Grid search is possible but practitioners often rely on community benchmarks.
+
+  \item \textbf{MMLU (Massive Multitask Language Understanding):} 57 subject areas (STEM, humanities, social sciences) with 4-choice questions. A gold standard for general knowledge evaluation. Score of 25\% = random. Human expert $\approx$ 89.8\%. GPT-4 $\approx$ 86.4\%.
+
+  \item \textbf{Mid-Training (emerging):} A training stage between pre-training and SFT that uses the pre-training objective (next-token prediction) but on curated, domain-specific data. Bridges the gap between general language modeling and task-specific behavior without the label cost of SFT.
+
+  \item \textbf{Synthetic Data Generation:} Using existing strong LLMs (e.g., GPT-4) to generate instruction-response pairs for SFT. Reduces human labeling cost but can introduce distribution shifts (e.g., ``model collapse'' if the student model trains on its own outputs). Human review of synthetic data is important for quality control.
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Build Projects}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{LoRA Fine-Tuning Pipeline} \textit{(5--8 hours, very high signal)}\\
+  This maps directly to your Finetune-Pipeline work. Using HuggingFace PEFT + SFTTrainer, fine-tune a 7B model (Mistral or LLaMA 3-8B) on a task of your choice (e.g., domain-specific QA, classification, code generation). Experiment with ranks $r \in \{4, 8, 16\}$ and learning rates. Compare LoRA vs.\ full fine-tuning on a held-out eval set. Write up the memory savings (GPU VRAM usage at each rank), training time, and quality trade-off. This is an ideal portfolio piece for Applied Scientist roles.
+
+  \item \textbf{QLoRA Experiment on a 13B+ Model} \textit{(4--6 hours, high signal)}\\
+  Apply QLoRA to fine-tune LLaMA 3-13B or a similar model on a consumer GPU (e.g., RTX 4090, 24GB VRAM, or Colab A100). Profile: peak VRAM before and after QLoRA, training throughput (tokens/second), final loss curve. Verify that the 16$\times$ VRAM savings are approximately achieved. This is a direct demonstration of the concepts from this lecture.
+
+  \item \textbf{FlashAttention Benchmark} \textit{(2--3 hours, good pedagogical signal)}\\
+  Implement a benchmark that compares standard PyTorch attention vs.\ FlashAttention (available in \texttt{torch.nn.functional.scaled\_dot\_product\_attention} with the flash backend) for sequence lengths $n \in \{512, 1024, 2048, 4096, 8192, 16384\}$. Measure: peak GPU memory (VRAM), forward-pass time, backward-pass time. Plot the scaling curves. Verify the $O(n)$ memory behavior of FlashAttention vs.\ $O(n^2)$ for standard attention.
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Explain It Back}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item A senior engineer says: ``Just scale up the model to 1 trillion parameters and train it for a week --- it'll be great.'' Using the Chinchilla law, explain why this may not be compute-optimal. What should they do instead? Give a concrete example with numbers.
+
+  \item You are presenting to a non-technical stakeholder who asks why GPT-3 is ``undertrained.'' Explain the Chinchilla law in plain language (no equations), using the analogy of study time vs.\ number of textbooks.
+
+  \item Explain the FlashAttention tiling trick to a software engineer who knows matrix operations but doesn't know ML. Focus on the HBM vs.\ SRAM distinction and why minimizing HBM reads/writes matters more than minimizing FLOPs. Use concrete numbers from the H100 spec.
+
+  \item Your team is debating whether to use full fine-tuning or LoRA for adapting LLaMA 3-70B to your company's internal domain. Walk through the trade-offs, covering: parameter count, VRAM requirements, training time, multi-task serving, and any empirical caveats about LoRA's training dynamics.
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Interview Practice Questions \& Answers}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}[L1 --- What is the Chinchilla law and what does it say about GPT-3?]
+\textbf{Answer:} The Chinchilla law (Hoffmann et al., 2022) states that for compute-optimal training, the number of training tokens should be approximately $20\times$ the number of model parameters. For GPT-3 (175B parameters), the optimal token count would be $\sim$3.5 trillion, but GPT-3 was only trained on 300 billion tokens. This means GPT-3 was severely undertrained relative to its parameter count --- the same compute budget could achieve better performance with a smaller model trained on more data. LLaMA 3 applied this insight, training a range of models on 15 trillion tokens.
+\end{notebox}
+
+\begin{notebox}[L1 --- What is the difference between SFT and pre-training in terms of data and objective?]
+\textbf{Answer:} Pre-training uses raw, unlabeled internet text (trillions of tokens) and trains on next-token prediction over the full sequence. SFT uses labeled (instruction, response) pairs (thousands to millions of examples, orders of magnitude less data). The key objective difference: in pre-training, loss is computed over all token positions. In SFT, the loss is masked to apply only to the output/response tokens --- the input prompt is conditioned on but not predicted. This prevents the model from ``learning to ask questions'' and focuses learning on the response generation.
+\end{notebox}
+
+\begin{notebox}[L2 --- Explain ZeRO stages and when you would use each.]
+\textbf{Answer:} ZeRO eliminates redundant storage in data-parallel training by sharding model state across GPUs. ZeRO-1 shards optimizer states (Adam's $m$ and $v$): $\sim$4$\times$ memory reduction, minimal communication overhead. ZeRO-2 additionally shards gradients: $\sim$8$\times$ reduction, moderate overhead. ZeRO-3 also shards parameters: $K\times$ reduction for $K$ GPUs, but requires all-gather of parameters during forward/backward passes --- highest communication cost. Use ZeRO-1 when model fits on one GPU but optimizer states don't. ZeRO-2 when gradients also overflow. ZeRO-3 when even the model doesn't fit on a single GPU.
+\end{notebox}
+
+\begin{notebox}[L2 --- Why does FlashAttention recomputing activations in the backward pass result in faster training, not slower?]
+\textbf{Answer:} Counterintuitively, recomputing attention activations during the backward pass is faster than storing and reloading them, because LLM training is memory-bandwidth-bound, not compute-bound. Standard attention stores the full $n \times n$ attention matrix $P$ in HBM after the forward pass, then reloads it during the backward pass. This requires $O(n^2)$ HBM reads and writes. FlashAttention recomputes $P$ using SRAM-resident tiling, avoiding those HBM transfers entirely. Even though more floating-point operations are executed (higher FLOPs), the elimination of slow HBM reads/writes dominates, yielding both lower latency and lower peak memory.
+\end{notebox}
+
+\begin{notebox}[L2 --- Explain LoRA's low-rank decomposition. Why does it reduce memory?]
+\textbf{Answer:} LoRA decomposes the weight update as $\Delta W = BA$ where $B \in \mathbb{R}^{d \times r}$ and $A \in \mathbb{R}^{r \times k}$ with $r \ll \min(d,k)$. The frozen pre-trained weight $W_0$ requires no gradients, so no gradient tensors are allocated for it. Only $B$ and $A$ require gradients and optimizer states. For a typical attention matrix with $d=k=4096$ and $r=8$: LoRA trains 65K parameters vs.\ 16.7M for full fine-tuning --- a 256$\times$ reduction. Since Adam optimizer states are 2$\times$ the parameter size in FP32, the optimizer memory reduction is proportional.
+\end{notebox}
+
+\begin{notebox}[L3 --- Describe the QLoRA approach and why NF4 is better than uniform INT8 for quantizing LLM weights.]
+\textbf{Answer:} QLoRA quantizes the frozen base model weights $W_0$ to 4-bit NF4 while keeping the LoRA matrices $B, A$ in BF16. During the forward pass, $W_0$ is dequantized to BF16 on the fly for computation. Standard INT8 quantization divides the numeric range into equal-width buckets. However, LLM weights approximately follow a normal distribution (concentrated near zero with thin tails). Uniform buckets waste bit-resolution on the sparse tail regions while under-representing the dense central region. NF4 uses quantile-based buckets derived from the normal distribution's CDF, placing equal numbers of values into each bucket. This minimizes expected quantization error for normally-distributed values, achieving better quality at the same bit-width.
+\end{notebox}
+
+\begin{notebox}[L3 --- What are the practical limitations of benchmark-based LLM evaluation?]
+\textbf{Answer:} Three main issues. First, \textbf{training on the test task}: a model trained on math-reasoning data will outperform on GSM8K regardless of general reasoning improvement. Benchmarks are only comparable if both models have or have not been trained on the test task's domain. Second, \textbf{benchmark saturation}: once top models approach human performance on a benchmark, it no longer discriminates between models. New benchmarks are needed but themselves may be optimized for shortly after release. Third, \textbf{capability vs.\ usefulness gap}: a model can score highly on MMLU while being unhelpful in practice due to poor instruction-following, verbosity, or refusing valid requests. Human evaluation (Chatbot Arena) partially addresses this but has its own issues: cold-start bias, riggability, rater non-representativeness, and factuality blindness.
+\end{notebox}
+
+\begin{notebox}[L1 --- Why does mixed precision training keep weights in FP32 but use FP16/BF16 for activations?]
+\textbf{Answer:} Activations are intermediate values computed during the forward pass on a specific batch of data. They are noisy and transient --- full FP32 precision is wasteful. Weights, however, accumulate tiny gradient updates across many training steps. If weights are stored in FP16, the update $\Delta W$ may be smaller than the minimum representable increment in FP16, causing the update to round to zero and learning to stall. FP32 weights have $\sim$7 decimal digits of precision vs.\ FP16's $\sim$3, ensuring small but meaningful updates are preserved. The speedup comes from FP16 activations enabling faster GEMM operations; the quality is preserved by FP32 weight masters.
+\end{notebox}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Self-Assessment Test}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\textbf{Scoring:} 16--20 = solid mastery; 12--15 = revisit weak spots; $<$12 = re-study.
+
+\subsection*{Multiple Choice (1 point each)}
+
+\textbf{Q1.} According to the Chinchilla law, for a model with 10 billion parameters, the compute-optimal training token count is approximately:\\
+(a) 10 billion\quad (b) 100 billion\quad (c) 200 billion\quad (d) 10 trillion
+
+\textbf{Q2.} In ZeRO-3, which of the following is sharded across GPUs?\\
+(a) Only optimizer states\quad (b) Optimizer states and gradients\quad
+(c) Optimizer states, gradients, and parameters\quad (d) Only parameters
+
+\textbf{Q3.} FlashAttention achieves its speedup primarily by:\\
+(a) Reducing the total number of FLOPs\quad
+(b) Minimizing read/write operations to HBM using SRAM tiling\quad
+(c) Approximating the attention matrix with a low-rank representation\quad
+(d) Using INT8 quantization for the attention computation
+
+\textbf{Q4.} In SFT, the training loss is computed over:\\
+(a) All tokens (input + output)\quad
+(b) Only the input/prompt tokens\quad
+(c) Only the output/response tokens\quad
+(d) A random 15\% of all tokens (like BERT's MLM)
+
+\textbf{Q5.} In LoRA with rank $r=4$ applied to a $1024 \times 1024$ weight matrix, how many trainable parameters are introduced?\\
+(a) $4 \times 1024 = 4096$\quad (b) $4 \times (1024 + 1024) = 8192$\quad
+(c) $4 \times 1024 \times 2 = 8192$\quad (d) $1024^2 / 4 = 262144$
+
+\textbf{Q6.} QLoRA stores the frozen base model weights in:\\
+(a) FP32 (full precision)\quad (b) BF16\quad (c) FP16\quad (d) 4-bit NF4
+
+\textbf{Q7.} BF16 is preferred over FP16 for LLM training because:\\
+(a) BF16 has higher mantissa precision\quad
+(b) BF16 has the same dynamic range as FP32 (same exponent size)\quad
+(c) BF16 is supported on more hardware\quad
+(d) BF16 reduces memory by 4$\times$ vs.\ FP32
+
+\textbf{Q8.} Which component of GPU memory is fast but small?\\
+(a) HBM\quad (b) DRAM\quad (c) SRAM\quad (d) VRAM (same as HBM)
+
+\subsection*{Short Answer (1.5 points each)}
+
+\textbf{Q9.} Name the four types of quantities that must be stored in GPU memory during LLM training and explain which is unique to Adam (not SGD).
+
+\textbf{Q10.} What is the ``knowledge cutoff date'' for an LLM and why is it a limitation?
+
+\textbf{Q11.} Explain in one paragraph why the Chatbot Arena ``cold start problem'' makes ELO rankings unreliable for newly released models.
+
+\textbf{Q12.} What is the benefit of LoRA's task-switching property compared to full fine-tuning for a multi-task serving setup?
+
+\textbf{Q13.} What does ``sample efficiency'' mean in the context of scaling laws? Which is more sample-efficient: a 7B or a 70B parameter model?
+
+\textbf{Q14.} Describe the online softmax trick that enables FlashAttention to compute attention without materializing the full $n \times n$ score matrix.
+
+\subsection*{Scenario (2 points)}
+
+\textbf{Q15.} Your startup wants to build a domain-specific LLM assistant (medical Q\&A) on a budget. You have one NVIDIA A100-80GB GPU and 10K high-quality (question, answer) pairs. Describe your full training approach from the base model choice through to serving, referencing QLoRA, LoRA rank selection, SFT loss masking, and evaluation strategy. What benchmarks would you use and why?
+
+\newpage
+\subsection*{Answer Key}
+
+\textbf{Q1.} (c) $20 \times 10\text{B} = 200$ billion tokens.
+
+\textbf{Q2.} (c) ZeRO-3 shards all three: optimizer states, gradients, and parameters.
+
+\textbf{Q3.} (b) FlashAttention's speedup comes from minimizing slow HBM read/writes via SRAM tiling. Total FLOPs actually increase (more recomputation in backward pass).
+
+\textbf{Q4.} (c) Loss is computed only on output/response tokens. Input tokens are masked out from the loss.
+
+\textbf{Q5.} (b) $B \in \mathbb{R}^{1024 \times 4}$ (4,096 params) + $A \in \mathbb{R}^{4 \times 1024}$ (4,096 params) = 8,192 total trainable parameters.
+
+\textbf{Q6.} (d) QLoRA stores frozen $W_0$ in 4-bit NF4 format. The LoRA matrices $B, A$ are stored in BF16.
+
+\textbf{Q7.} (b) BF16 uses 8 exponent bits (same as FP32), giving the same dynamic range. FP16 has only 5 exponent bits, leading to overflow/underflow during training.
+
+\textbf{Q8.} (c) SRAM is small ($\sim$20--40 MB) but very fast ($\sim$20--40 TB/s). HBM is large (80 GB on H100) but slower ($\sim$3 TB/s).
+
+\textbf{Q9.} (1) \textit{Model parameters} ($W$), (2) \textit{Activations} (needed for gradient computation), (3) \textit{Gradients} ($\nabla W$), (4) \textit{Optimizer states}. The optimizer states (first moment $m$ and second moment $v$ in Adam) are unique to Adam --- SGD only stores parameters and gradients.
+
+\textbf{Q10.} The knowledge cutoff is the date up to which pre-training data was collected. Events occurring after this date are unknown to the model from its weights alone. It's a limitation because: (a) the model cannot answer questions about recent events, (b) the model may give outdated information confidently, (c) injecting new knowledge into existing weights without degrading other capabilities is an unsolved problem (requiring RAG, tool use, or continual pre-training as workarounds).
+
+\textbf{Q11.} ELO ratings depend on the number and quality of pairwise comparisons. A newly released model starts with few matchups and is paired somewhat randomly. If those early matchups happen to be against weak or strong opponents disproportionately, the resulting ELO can be artificially inflated or deflated. Since ELO updates are cumulative and early games have high uncertainty, these initial biases can persist as the model accumulates more matches, making the final rating unreliable for models that have not yet played thousands of games.
+
+\textbf{Q12.} In multi-task serving, full fine-tuning creates a separate complete copy of the model for each task (e.g., one 70B model for spam, another for sentiment). This requires enormous storage and VRAM. With LoRA, only one copy of $W_0$ (70B frozen) is needed, shared across all tasks. Each task requires only its small $(B, A)$ adapter ($\sim$millions of params vs.\ billions). Switching tasks means swapping the adapter --- no additional GPU memory. For $N$ tasks: full fine-tuning requires $N \times 70$B parameter copies; LoRA requires 1 base + $N \times$ (tiny adapters).
+
+\textbf{Q13.} Sample efficiency means achieving a given quality level with fewer training tokens. A 70B model is more sample-efficient than a 7B model: for the same number of tokens processed, the 70B model reaches lower loss. Intuitively, larger models can represent more complex patterns and extract more signal from each training example.
+
+\textbf{Q14.} The softmax of a concatenated row $[S_1, S_2, \ldots, S_k]$ can be decomposed as: compute softmax of $S_1$ up to a running max $m_1$, then when $S_2$ arrives, update the running max $m_{1:2} = \max(m_1, m_2)$ and rescale the previous partial result by $\exp(m_1 - m_{1:2})$ before adding the contribution from $S_2$. Repeating this block by block produces the exact final softmax. FlashAttention uses this to process attention in tiles that fit in SRAM, accumulating the output $O$ with rescaling factors, without ever writing the full $n \times n$ attention matrix to HBM.
+
+\textbf{Q15.} Start with a pre-trained base model (LLaMA 3-8B or Mistral-7B) --- small enough to fit with QLoRA on one A100. Apply QLoRA: quantize base weights to NF4 (16$\times$ VRAM reduction), add LoRA adapters at attention and FFN layers with rank $r=16$, train in BF16. For SFT: format your 10K pairs as instruction-response; mask loss to apply only to response tokens. Use a learning rate $\sim$2$\times 10^{-4}$ (higher than full fine-tuning as per LoRA guidance), linear warmup + cosine decay. Evaluation: (1) domain-specific held-out test set (200--500 examples, human-reviewed), (2) general benchmarks MMLU to check for catastrophic forgetting, (3) MedQA if available as a medical domain benchmark. For serving: merge LoRA weights into base for faster inference, quantize inference to INT8 with llm.int8(), serve with vLLM for KV-cache efficiency. Track perplexity and response quality over training; if quality plateaus, consider adding more diverse medical QA data.
+
+\vspace{1em}
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}\\[6pt]
+{\small\textit{End of Study Guide --- Lecture 4}}\\[4pt]
+{\small Source: Stanford CME 295, Fall 2025. Afshine \& Shervine Amidi.}
+\end{center}
+
+\end{document}

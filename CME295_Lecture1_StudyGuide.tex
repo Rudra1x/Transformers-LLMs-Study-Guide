@@ -1,0 +1,858 @@
+\documentclass[11pt, a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% lmodern not available in this env, using default CM fonts
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{multicol}
+\usepackage{tikz}
+
+% ── Colors ────────────────────────────────────────────────────────────────────
+\definecolor{defblue}{RGB}{0, 73, 144}
+\definecolor{exgreen}{RGB}{0, 100, 0}
+\definecolor{warnred}{RGB}{180, 30, 30}
+\definecolor{notegray}{RGB}{80, 80, 80}
+\definecolor{lightbg}{RGB}{245, 247, 250}
+
+% ── tcolorbox environments ────────────────────────────────────────────────────
+\tcbuselibrary{skins, breakable}
+
+\newtcolorbox{defbox}[1][]{
+  colback=blue!3, colframe=defblue, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt
+}
+
+\newtcolorbox{exbox}[1][]{
+  colback=green!3, colframe=exgreen, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt
+}
+
+\newtcolorbox{warnbox}[1][]{
+  colback=red!3, colframe=warnred, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt
+}
+
+\newtcolorbox{notebox}[1][]{
+  colback=lightbg, colframe=notegray, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt
+}
+
+% ── Header/Footer ─────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{notegray}{CME 295 -- Lecture 1 Study Guide}}
+\fancyhead[R]{\small\textcolor{notegray}{Transformers \& LLMs}}
+\fancyfoot[C]{\thepage}
+
+% ── Section formatting ────────────────────────────────────────────────────────
+\titleformat{\section}{\Large\bfseries\color{defblue}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{defblue!80}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{defblue!60}}{}{0em}{}
+
+\hypersetup{
+  colorlinks=true, linkcolor=defblue, urlcolor=defblue!80, citecolor=exgreen
+}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries\color{defblue} Comprehensive Study Guide}\\[6pt]
+{\Large CME 295: Transformers \& Large Language Models --- Lecture 1}\\[4pt]
+{\normalsize Based on Stanford CME 295 by Afshine \& Shervine Amidi}\\[4pt]
+{\small Prepared for: Applied AI/ML Engineers with ML/DL Fundamentals}\\[2pt]
+\rule{\textwidth}{0.4pt}
+\end{center}
+
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Topic Map}
+% ══════════════════════════════════════════════════════════════════════════════
+
+This lecture covers the foundational pipeline from raw text to the Transformer architecture. Below is the complete hierarchy of topics and sub-topics.
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=2em]
+  \item \textbf{NLP Overview}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Classification tasks (sentiment extraction, intent detection, language detection, topic modeling)
+      \item Multi-classification tasks (NER, POS tagging, dependency/constituency parsing)
+      \item Generation tasks (machine translation, question answering, summarization, code/text generation)
+      \item Evaluation metrics (accuracy, precision, recall, F1, BLEU, ROUGE, perplexity)
+    \end{enumerate}
+  \item \textbf{Tokenization}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Word-level tokenization
+      \item Subword-level tokenization (BPE, WordPiece)
+      \item Character-level tokenization
+      \item Out-of-Vocabulary (OOV) problem
+    \end{enumerate}
+  \item \textbf{Token/Word Representation}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item One-Hot Encoding (OHE) and its limitations
+      \item Cosine similarity
+      \item Word2vec: CBOW and Skip-gram
+      \item Proxy tasks and learned embeddings
+      \item Embedding dimensions and vocabulary size
+    \end{enumerate}
+  \item \textbf{Sequence Models (Pre-Transformer)}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Recurrent Neural Networks (RNNs) --- architecture, hidden state, use cases
+      \item Long Short-Term Memory (LSTM) --- cell state, gating
+      \item Vanishing/exploding gradient problem
+      \item Long-range dependency limitations
+    \end{enumerate}
+  \item \textbf{Attention Mechanism}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Motivation: solving long-range dependencies
+      \item Bahdanau attention (2014) --- direct links between encoder and decoder
+      \item Self-attention --- all tokens attend to all tokens simultaneously
+    \end{enumerate}
+  \item \textbf{Transformer Architecture}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Query, Key, Value (Q, K, V) formulation
+      \item Scaled dot-product attention: $\text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$
+      \item Multi-head attention --- parallel projections
+      \item Encoder: self-attention $\to$ FFN
+      \item Decoder: masked self-attention $\to$ cross-attention $\to$ FFN
+      \item Positional encoding (sinusoidal)
+      \item Label smoothing
+      \item End-to-end translation pipeline
+    \end{enumerate}
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Deep-Dive Notes}
+% ══════════════════════════════════════════════════════════════════════════════
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{NLP Task Taxonomy}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[Definition: Natural Language Processing (NLP)]
+NLP is the field concerned with computational manipulation and understanding of human language (text and speech). At its core, NLP converts unstructured text into structured representations that models can process.
+\end{defbox}
+
+NLP tasks fall into three buckets based on the relationship between inputs and outputs:
+
+\subsubsection{Classification (Text $\to$ Single Label)}
+
+The model receives an input text and predicts a single categorical label.
+
+\begin{exbox}[Example: Sentiment Analysis]
+Input: \texttt{"This teddy bear is SO CUTE!"} $\to$ Output: \texttt{Positive}
+
+Common datasets: IMDb reviews, Amazon product reviews, Twitter/X posts.
+\end{exbox}
+
+Other tasks in this bucket: intent detection (e.g., extracting ``create alarm'' from a user command), language detection, and topic modeling.
+
+\subsubsection{Multi-Classification (Text $\to$ Multiple Labels per Token)}
+
+The model receives text and produces a label for each token (or a subset of tokens).
+
+\begin{defbox}[Definition: Named Entity Recognition (NER)]
+Given an input sequence, NER identifies and classifies named entities into predefined categories such as \textsc{Person}, \textsc{Location}, \textsc{Organization}, \textsc{Time}, etc. Each token receives a label.
+\end{defbox}
+
+Evaluation is done at the \emph{token level} or per \emph{entity type}, not at the sentence level. Other tasks: Part-of-Speech (POS) tagging, dependency parsing, constituency parsing.
+
+\subsubsection{Generation (Text $\to$ Variable-Length Text)}
+
+The model receives text and produces text of arbitrary length. This is the dominant paradigm today.
+
+Tasks: machine translation, question answering (ChatGPT, Gemini), summarization, code generation, creative writing.
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Evaluation Metrics}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Classification Metrics}
+
+\begin{defbox}[Precision, Recall, F1]
+\begin{align}
+\text{Precision} &= \frac{\text{True Positives}}{\text{True Positives} + \text{False Positives}} \quad \text{(Of all predicted +, how many correct?)} \\[4pt]
+\text{Recall} &= \frac{\text{True Positives}}{\text{True Positives} + \text{False Negatives}} \quad \text{(Of all actual +, how many caught?)} \\[4pt]
+F_1 &= 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}} \quad \text{(Harmonic mean)}
+\end{align}
+\end{defbox}
+
+\begin{warnbox}[Gotcha: Class Imbalance]
+Accuracy is misleading when classes are imbalanced. If 99\% of samples are positive, a model that always predicts positive achieves 99\% accuracy but 0\% recall on the minority class. Always check precision, recall, and F1 per class.
+\end{warnbox}
+
+\subsubsection{Generation Metrics}
+
+\begin{defbox}[BLEU (Bilingual Evaluation Understudy)]
+Measures \emph{precision-like} quality of generated text against reference translations. Computes n-gram overlap between candidate and reference(s). Higher is better. Originally designed for machine translation.
+\end{defbox}
+
+\begin{defbox}[ROUGE (Recall-Oriented Understudy for Gisting Evaluation)]
+A suite of metrics measuring \emph{recall-like} overlap. ROUGE-N measures n-gram recall, ROUGE-L measures longest common subsequence. Higher is better. Commonly used for summarization.
+\end{defbox}
+
+\begin{defbox}[Perplexity (PPL)]
+Quantifies how ``surprised'' a language model is by a sequence. Mathematically:
+\[
+\text{PPL}(W) = \exp\!\left(-\frac{1}{N}\sum_{i=1}^{N}\ln P(w_i \mid w_1, \ldots, w_{i-1})\right)
+\]
+\textbf{Lower is better.} A perplexity of $k$ means the model is, on average, as uncertain as if it were choosing uniformly among $k$ words at each step.
+\end{defbox}
+
+\begin{warnbox}[Gotcha: Reference-Based vs.\ Reference-Free]
+BLEU and ROUGE require reference texts (labels), which are expensive to produce. Modern LLM evaluation increasingly uses reference-free metrics (e.g., LLM-as-judge). Perplexity requires no reference but only measures model confidence, not output quality.
+\end{warnbox}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Tokenization}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[Definition: Tokenization]
+The process of decomposing raw text into discrete units called \textbf{tokens}. Tokens are the atomic inputs to any NLP model. The choice of tokenization strategy directly impacts vocabulary size, sequence length, and model performance.
+\end{defbox}
+
+\subsubsection{Word-Level Tokenization}
+
+Split on whitespace/punctuation. Each word is a token.
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Pro:} Simple, interpretable.
+  \item \textbf{Con:} Morphologically related words (``bear'' vs.\ ``bears'', ``run'' vs.\ ``running'') are treated as completely separate tokens. High OOV risk at inference time.
+\end{itemize}
+
+\subsubsection{Subword-Level Tokenization}
+
+Decomposes words into meaningful subword units by learning common prefixes, suffixes, and roots from a training corpus.
+
+\begin{exbox}[Example: WordPiece Tokenization]
+\texttt{reading} $\to$ \texttt{[read, \#\#ing]}\\
+\texttt{teddy} $\to$ \texttt{[ted, \#\#dy]}
+
+The \texttt{\#\#} prefix indicates a continuation piece (not the start of a word).
+\end{exbox}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Pro:} Leverages root morphology; significantly lower OOV risk than word-level.
+  \item \textbf{Con:} Longer sequences (more tokens per sentence $\Rightarrow$ more computation).
+\end{itemize}
+
+Common algorithms: BPE (Byte Pair Encoding), WordPiece (used in BERT), SentencePiece (used in T5, LLaMA).
+
+\subsubsection{Character-Level Tokenization}
+
+Each character is a token.
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Pro:} Virtually zero OOV; robust to misspellings and casing errors.
+  \item \textbf{Con:} Extremely long sequences $\Rightarrow$ very slow training/inference. Individual character embeddings carry minimal semantic meaning.
+\end{itemize}
+
+\begin{defbox}[Definition: Out-of-Vocabulary (OOV)]
+A token encountered at inference time that was not present in the training vocabulary. Typically mapped to a special \texttt{[UNK]} (unknown) token, which collapses all unseen words into a single representation --- losing all semantic information.
+\end{defbox}
+
+\begin{notebox}[Practical Insight: Vocabulary Size]
+\begin{itemize}[leftmargin=1.5em]
+  \item Single-language models: $\sim$30K--50K tokens (e.g., GPT-2: 50,257)
+  \item Multilingual + code models: $\sim$100K--256K tokens (e.g., LLaMA 3: 128K; GPT-4o: 200K)
+  \item Larger vocabularies reduce sequence length but increase embedding table size ($V \times d_{\text{model}}$).
+\end{itemize}
+\end{notebox}
+
+\begin{table}[h]
+\centering
+\caption{Tokenization Comparison}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Property} & \textbf{Word} & \textbf{Subword} & \textbf{Character} \\
+\midrule
+OOV Risk & High & Low & Near zero \\
+Sequence Length & Short & Medium & Very long \\
+Morphology Awareness & None & High & N/A \\
+Compute Cost & Low & Medium & High \\
+Typical Use & Legacy & \textbf{Modern standard} & Niche \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Token Representation and Word2vec}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{One-Hot Encoding (OHE)}
+
+\begin{defbox}[Definition: One-Hot Encoding]
+Each token in a vocabulary of size $V$ is represented as a binary vector $\mathbf{x} \in \{0,1\}^V$ where exactly one element is 1. Token $i$ has a 1 at position $i$ and 0 everywhere else.
+\end{defbox}
+
+\begin{warnbox}[Fundamental Problem]
+All one-hot vectors are orthogonal to each other: $\mathbf{x}_i^\top \mathbf{x}_j = 0$ for $i \neq j$. This means \emph{no similarity information} is captured. ``Teddy bear'' and ``soft'' are as distant as ``teddy bear'' and ``quantum mechanics.''
+\end{warnbox}
+
+\subsubsection{Cosine Similarity}
+
+\begin{defbox}[Definition: Cosine Similarity]
+\[
+\text{cos}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\| \, \|\mathbf{v}\|}
+\]
+Measures the angle between two vectors, ignoring magnitude. Range: $[-1, 1]$ where 1 = identical direction, 0 = orthogonal (independent), $-1$ = opposite.
+\end{defbox}
+
+This is the standard similarity metric for comparing embeddings. The dot product alone is also used but is scale-sensitive.
+
+\subsubsection{Word2vec (Mikolov et al., 2013)}
+
+\begin{defbox}[Definition: Word2vec]
+A shallow neural network trained on a \textbf{proxy task} (predicting words from context or vice versa) over large text corpora. The learned hidden-layer weights serve as dense, low-dimensional word embeddings of dimension $d \ll V$.
+\end{defbox}
+
+\begin{defbox}[Definition: Proxy Task (Pretext Task)]
+A task whose primary purpose is not its own output but rather the useful representations learned during training. In Word2vec, predicting neighboring words is the proxy task; the real goal is learning embeddings.
+\end{defbox}
+
+Two training objectives:
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Continuous Bag of Words (CBOW):} Predict the target word from its surrounding context words.
+  \[
+  \text{Context: } [w_{t-2}, w_{t-1}, w_{t+1}, w_{t+2}] \to \text{Predict: } w_t
+  \]
+  \item \textbf{Skip-gram:} Predict the surrounding context words from the target word.
+  \[
+  \text{Target: } w_t \to \text{Predict: } [w_{t-2}, w_{t-1}, w_{t+1}, w_{t+2}]
+  \]
+\end{enumerate}
+
+\begin{exbox}[Architecture Walkthrough]
+Consider a vocabulary of size $V=6$ and hidden dimension $d=2$.
+
+\textbf{Step 1:} Input word ``A'' as OHE vector $[1,0,0,0,0,0]$.
+
+\textbf{Step 2:} Multiply by weight matrix $W_1 \in \mathbb{R}^{V \times d}$ to get hidden state $\mathbf{h} = [0.2, 0.9]$.
+
+\textbf{Step 3:} Multiply by $W_2 \in \mathbb{R}^{d \times V}$, apply softmax $\to$ probability distribution over vocabulary: $[0.2, 0.4, 0.1, 0.1, 0.1, 0.1]$.
+
+\textbf{Step 4:} Compare with true next word (``cute'' = $[0,1,0,0,0,0]$), compute cross-entropy loss, backpropagate.
+
+\textbf{Result:} After training, the hidden-layer vector $\mathbf{h}$ for each word \emph{is} that word's embedding. The rows of $W_1$ are the learned embeddings.
+\end{exbox}
+
+Key properties of Word2vec embeddings:
+\begin{itemize}[leftmargin=2em]
+  \item Capture semantic relationships: $\vec{\text{king}} - \vec{\text{man}} + \vec{\text{woman}} \approx \vec{\text{queen}}$
+  \item Similar words cluster together in embedding space
+  \item Typical embedding dimensions: $d = 100$--$300$ (Word2vec era), $d = 768$--$4096$ (modern transformers)
+\end{itemize}
+
+\begin{warnbox}[Limitations of Word2vec]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Static embeddings:} Each word gets one fixed vector regardless of context. ``Bank'' (river) and ``bank'' (financial) have the same embedding.
+  \item \textbf{No word order:} Bag-of-words assumption means ``dog bites man'' and ``man bites dog'' produce identical representations.
+  \item Training convergence is tracked by monitoring the proxy-task loss over epochs; stop when it plateaus.
+\end{itemize}
+\end{warnbox}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Recurrent Neural Networks (RNNs)}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[Definition: Recurrent Neural Network (RNN)]
+A class of neural networks where connections form a directed cycle over a temporal sequence. At each time step $t$, the network takes the current input $\mathbf{x}_t$ and the previous hidden state $\mathbf{h}_{t-1}$, producing a new hidden state:
+\[
+\mathbf{h}_t = f(\mathbf{W}_h \mathbf{h}_{t-1} + \mathbf{W}_x \mathbf{x}_t + \mathbf{b})
+\]
+where $f$ is typically $\tanh$ or ReLU. First introduced in the 1980s.
+\end{defbox}
+
+The hidden state $\mathbf{h}_t$ encapsulates the ``meaning of the sequence processed so far.'' This is also called the \textbf{activation vector} or \textbf{context vector}.
+
+\begin{exbox}[RNN for Different NLP Tasks]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Classification:} Use the final hidden state $\mathbf{h}_T$ and project to label space (e.g., positive/negative).
+  \item \textbf{Multi-classification:} Use each hidden state $\mathbf{h}_t$ to predict a label for token $t$.
+  \item \textbf{Generation (seq2seq):} Encode the full input into $\mathbf{h}_T$ (context vector), then decode token by token using a separate decoder RNN.
+\end{itemize}
+\end{exbox}
+
+\subsubsection{LSTM (Long Short-Term Memory)}
+
+\begin{defbox}[Definition: LSTM (Hochreiter \& Schmidhuber, 1997)]
+An extension of RNNs that introduces a \textbf{cell state} $\mathbf{c}_t$ in addition to the hidden state $\mathbf{h}_t$. The cell state acts as a ``memory highway'' regulated by three gates:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Forget gate} $f_t$: decides what to discard from cell state
+  \item \textbf{Input gate} $i_t$: decides what new information to store
+  \item \textbf{Output gate} $o_t$: decides what to output from cell state
+\end{itemize}
+This allows the network to selectively remember or forget information over long sequences.
+\end{defbox}
+
+\subsubsection{The Vanishing Gradient Problem}
+
+\begin{defbox}[Definition: Vanishing Gradient]
+During backpropagation through time (BPTT), gradients are computed as a product of Jacobians across time steps:
+\[
+\frac{\partial \mathcal{L}}{\partial \mathbf{W}} \propto \prod_{t=1}^{T} \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_{t-1}}
+\]
+If the spectral radius of each Jacobian is $<1$, the product vanishes exponentially. If $>1$, it explodes. In either case, the model cannot effectively learn long-range dependencies.
+\end{defbox}
+
+\begin{warnbox}[Why RNNs Fell Out of Favor]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Long-range dependencies:} Even LSTMs struggle beyond $\sim$500 tokens.
+  \item \textbf{Sequential computation:} To compute $\mathbf{h}_T$, you must compute $\mathbf{h}_1, \mathbf{h}_2, \ldots, \mathbf{h}_{T-1}$ first. No parallelism $\Rightarrow$ very slow training on GPUs.
+  \item \textbf{Information bottleneck:} The entire input sequence is compressed into a single fixed-size vector $\mathbf{h}_T$.
+\end{enumerate}
+\end{warnbox}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Attention Mechanism}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[Definition: Attention (Bahdanau et al., 2014)]
+A mechanism that creates \textbf{direct connections} between the decoder at each time step and all encoder hidden states. Instead of relying solely on the final encoder hidden state, the decoder can ``attend to'' (peek at) relevant parts of the input at each decoding step.
+\end{defbox}
+
+\begin{exbox}[Intuition: Translation]
+When translating ``A cute teddy bear is reading'' to French, while generating the word ``mignon'' (cute), the model should attend most strongly to the input word ``cute.'' Attention provides this direct link, bypassing the bottleneck of compressing everything into one vector.
+\end{exbox}
+
+This was the direct precursor to the Transformer. The key insight: \textit{direct connections solve long-range dependencies better than sequential processing.}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Self-Attention and the Transformer}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Self-Attention Mechanism}
+
+\begin{defbox}[Definition: Self-Attention]
+Unlike Bahdanau attention (decoder attends to encoder), self-attention allows \textbf{every token in a sequence to attend to every other token in the same sequence}. This produces context-aware representations where the embedding of ``bank'' differs depending on whether ``river'' or ``robbery'' appears nearby.
+
+Introduced as the core mechanism in ``Attention Is All You Need'' (Vaswani et al., 2017).
+\end{defbox}
+
+\subsubsection{Query, Key, Value (Q, K, V)}
+
+\begin{defbox}[Definition: Query, Key, Value]
+Each input embedding $\mathbf{x}_i$ is projected into three different spaces:
+\begin{align}
+\mathbf{q}_i &= \mathbf{W}_Q \mathbf{x}_i \quad \text{(Query: ``what am I looking for?'')} \\
+\mathbf{k}_i &= \mathbf{W}_K \mathbf{x}_i \quad \text{(Key: ``what do I contain?'')} \\
+\mathbf{v}_i &= \mathbf{W}_V \mathbf{x}_i \quad \text{(Value: ``what information do I provide?'')}
+\end{align}
+$\mathbf{W}_Q, \mathbf{W}_K, \mathbf{W}_V$ are \textbf{learned} projection matrices.
+\end{defbox}
+
+\begin{exbox}[Intuition: Dictionary Lookup Analogy]
+Think of self-attention as a soft dictionary lookup. You have a query (the word you want to contextualize). You compare that query against all keys (all other words). The most similar keys get higher weights. You then take a weighted sum of the corresponding values to produce the contextualized representation.
+\end{exbox}
+
+\subsubsection{Scaled Dot-Product Attention}
+
+\begin{defbox}[Formula: Scaled Dot-Product Attention]
+\[
+\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V
+\]
+where:
+\begin{itemize}[leftmargin=1.5em]
+  \item $Q \in \mathbb{R}^{n \times d_k}$ --- matrix of all queries (one row per token)
+  \item $K \in \mathbb{R}^{n \times d_k}$ --- matrix of all keys
+  \item $V \in \mathbb{R}^{n \times d_v}$ --- matrix of all values
+  \item $\sqrt{d_k}$ --- scaling factor to prevent dot products from growing too large
+\end{itemize}
+\end{defbox}
+
+\begin{exbox}[Step-by-Step Computation]
+\textbf{Step 1:} Compute $QK^\top \in \mathbb{R}^{n \times n}$. Entry $(i,j)$ = dot product of query $i$ with key $j$ = how much token $i$ should attend to token $j$.
+
+\textbf{Step 2:} Divide by $\sqrt{d_k}$. As $d_k$ grows, dot products grow in magnitude, pushing softmax into regions of tiny gradients. Scaling prevents this.
+
+\textbf{Step 3:} Apply softmax row-wise $\to$ each row becomes a probability distribution over all tokens (attention weights).
+
+\textbf{Step 4:} Multiply by $V$ $\to$ each output row is a weighted sum of all value vectors, weighted by the attention scores from Step 3.
+\end{exbox}
+
+\begin{notebox}[Why $\sqrt{d_k}$? (Scaling Factor)]
+If $q$ and $k$ are random vectors with independent components of mean 0 and variance 1, their dot product has mean 0 and variance $d_k$. Dividing by $\sqrt{d_k}$ normalizes the variance back to 1, keeping the softmax in a numerically stable regime. Without this, for large $d_k$, softmax saturates and gradients vanish.
+\end{notebox}
+
+\subsubsection{Multi-Head Attention}
+
+\begin{defbox}[Definition: Multi-Head Attention (MHA)]
+Instead of performing a single attention computation, run $h$ attention computations in parallel, each with its own learned projection matrices ($\mathbf{W}_Q^{(i)}, \mathbf{W}_K^{(i)}, \mathbf{W}_V^{(i)}$):
+\[
+\text{head}_i = \text{Attention}(Q W_Q^{(i)}, K W_K^{(i)}, V W_V^{(i)})
+\]
+\[
+\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h) \, W_O
+\]
+$W_O$ projects the concatenated heads back to $d_{\text{model}}$ dimensions.
+\end{defbox}
+
+\begin{itemize}[leftmargin=2em]
+  \item Each head can learn different ``types'' of attention (e.g., one head for syntactic relationships, another for semantic, another for positional).
+  \item Analogous to multiple filters in a CNN layer.
+  \item No explicit constraint forces heads to be different; gradient descent naturally diversifies them because identical heads would be wasteful degrees of freedom.
+\end{itemize}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Transformer Architecture}
+% ──────────────────────────────────────────────────────────────────────────────
+
+The full Transformer (Vaswani et al., 2017) is an encoder--decoder architecture designed for sequence-to-sequence tasks (originally machine translation).
+
+\subsubsection{Encoder}
+
+The encoder processes the input sequence and produces context-aware representations.
+
+\begin{notebox}[Encoder Block (repeated $N$ times)]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Multi-Head Self-Attention:} Every input token attends to every other input token. Produces contextualized representations.
+  \item \textbf{Add \& Norm:} Residual connection + Layer Normalization.
+  \item \textbf{Feed-Forward Network (FFN):} Two linear transformations with a ReLU in between:
+  \[
+  \text{FFN}(\mathbf{x}) = \max(0, \mathbf{x}W_1 + b_1)W_2 + b_2
+  \]
+  The hidden dimension $d_{\text{FF}}$ is typically $4 \times d_{\text{model}}$ (e.g., $d_{\text{model}} = 512 \Rightarrow d_{\text{FF}} = 2048$).
+  \item \textbf{Add \& Norm:} Another residual connection + Layer Normalization.
+\end{enumerate}
+\end{notebox}
+
+\begin{notebox}[Why is $d_{\text{FF}} > d_{\text{model}}$?]
+In Word2vec, the hidden layer was \emph{smaller} than the vocabulary (compression). In the Transformer FFN, the hidden layer is \emph{larger} than $d_{\text{model}}$ (expansion). The rationale: the FFN needs enough capacity to learn complex, non-linear transformations of the attention outputs. The bottleneck-expansion-bottleneck pattern ($d_{\text{model}} \to d_{\text{FF}} \to d_{\text{model}}$) gives the network expressive power while keeping the residual stream at a manageable dimension.
+\end{notebox}
+
+\subsubsection{Decoder}
+
+The decoder generates the output sequence one token at a time.
+
+\begin{notebox}[Decoder Block (repeated $N$ times)]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Masked Multi-Head Self-Attention:} Each token attends only to previously generated tokens (and itself). Future tokens are masked to $-\infty$ before softmax, ensuring autoregressive generation.
+  \item \textbf{Add \& Norm}
+  \item \textbf{Multi-Head Cross-Attention:}
+    \begin{itemize}
+      \item \textbf{Queries} come from the decoder (previous layer's output)
+      \item \textbf{Keys and Values} come from the encoder's final output
+    \end{itemize}
+    This lets the decoder ``look at'' the full input while deciding what to generate next.
+  \item \textbf{Add \& Norm}
+  \item \textbf{FFN + Add \& Norm}
+\end{enumerate}
+\end{notebox}
+
+\begin{exbox}[Cross-Attention Intuition]
+When translating to French and generating the word ``mignon'': the decoder's query is derived from the tokens decoded so far (``Un ours en peluche''). The keys and values come from the encoder's representation of ``A cute teddy bear is reading.'' The model learns to attend strongly to ``cute'' when generating ``mignon.''
+\end{exbox}
+
+\subsubsection{Positional Encoding}
+
+\begin{defbox}[Definition: Positional Encoding]
+Since self-attention has no inherent notion of token order (it processes all tokens simultaneously via matrix multiplication), position information must be explicitly injected. The original Transformer uses sinusoidal functions:
+\begin{align}
+PE_{(pos, 2i)} &= \sin\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right) \\[4pt]
+PE_{(pos, 2i+1)} &= \cos\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)
+\end{align}
+These are added element-wise to the token embeddings.
+\end{defbox}
+
+Properties: deterministic (not learned), can generalize to unseen sequence lengths, and the relative position between any two positions can be represented as a linear function of the encodings.
+
+\subsubsection{Output Layer}
+
+After $N$ decoder blocks, the output goes through:
+\begin{enumerate}[leftmargin=2em]
+  \item A linear projection to vocabulary size $V$
+  \item Softmax to get probability distribution over the vocabulary
+  \item The highest-probability token is selected (or sampled)
+\end{enumerate}
+
+Generation stops when the model outputs the \texttt{[EOS]} (End Of Sequence) special token.
+
+\subsubsection{Label Smoothing}
+
+\begin{defbox}[Definition: Label Smoothing]
+Instead of training against hard one-hot targets $[0, 0, 1, 0, \ldots, 0]$, use soft targets:
+\[
+y_i = \begin{cases}
+1 - \epsilon & \text{if } i = \text{correct class} \\
+\frac{\epsilon}{V - 1} & \text{otherwise}
+\end{cases}
+\]
+where $\epsilon$ is typically small (e.g., 0.1). This acknowledges that in language, multiple valid continuations exist.
+\end{defbox}
+
+\begin{itemize}[leftmargin=2em]
+  \item Prevents the model from becoming overconfident.
+  \item Acts as a regularizer, reducing overfitting.
+  \item Empirically improves BLEU scores on translation tasks.
+\end{itemize}
+
+\subsubsection{Key Parameters (Original Paper)}
+
+\begin{table}[h]
+\centering
+\caption{Transformer Base Configuration (Vaswani et al., 2017)}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+$N$ (encoder/decoder layers) & 6 \\
+$d_{\text{model}}$ (embedding dimension) & 512 \\
+$d_{\text{FF}}$ (FFN hidden dimension) & 2048 \\
+$h$ (number of attention heads) & 8 \\
+$d_k = d_v = d_{\text{model}} / h$ & 64 \\
+Label smoothing $\epsilon$ & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{End-to-End Translation Pipeline}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Tying it all together for translating ``A cute teddy bear is reading'' (English $\to$ French):
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Tokenize:} Split into tokens, add special tokens: \texttt{[BOS] A cute teddy bear is reading . [EOS]}
+  \item \textbf{Embed:} Look up learned embeddings for each token ($d_{\text{model}}$-dimensional vectors).
+  \item \textbf{Add Positional Encoding:} Element-wise addition of sinusoidal position vectors.
+  \item \textbf{Encode:} Pass through $N$ encoder blocks. Each block: self-attention $\to$ FFN. Output: context-aware embeddings for every input token.
+  \item \textbf{Decode (autoregressive):}
+    \begin{enumerate}[label=(\alph*)]
+      \item Start with \texttt{[BOS]} token.
+      \item Masked self-attention over decoded tokens so far.
+      \item Cross-attention: queries from decoder, keys/values from encoder output.
+      \item FFN, then linear + softmax $\to$ predict next token: ``Un.''
+      \item Feed ``Un'' back into decoder. Repeat: predict ``ours,'' ``en,'' ``peluche,'' ``mignon,'' ``lit,'' \texttt{[EOS]}.
+    \end{enumerate}
+  \item \textbf{Stop:} Generation halts upon predicting \texttt{[EOS]}.
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Related Concepts You Should Also Know}
+% ══════════════════════════════════════════════════════════════════════════════
+
+These concepts were touched on or assumed by the lecture but not fully explained. Interviewers love probing these gaps.
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Byte Pair Encoding (BPE):} The most common subword tokenization algorithm. Iteratively merges the most frequent pair of adjacent tokens until reaching the desired vocabulary size. Used in GPT models.
+
+  \item \textbf{Residual Connections (Skip Connections):} The ``Add'' in ``Add \& Norm.'' $\text{output} = \text{sublayer}(\mathbf{x}) + \mathbf{x}$. Allows gradients to flow directly through the network, mitigating vanishing gradients in deep stacks. Critical for training Transformers with $N \geq 6$ layers.
+
+  \item \textbf{Layer Normalization:} Normalizes activations across the feature dimension (not the batch dimension like BatchNorm). Stabilizes training by reducing internal covariate shift. Applied after each sublayer in the Transformer.
+
+  \item \textbf{Softmax Temperature:} Scaling logits by a temperature $\tau$ before softmax: $\text{softmax}(z_i / \tau)$. High $\tau \to$ more uniform (exploratory); low $\tau \to$ more peaked (greedy). Used during inference/generation.
+
+  \item \textbf{Cross-Entropy Loss:} The standard loss function for next-token prediction: $\mathcal{L} = -\sum_i y_i \log(\hat{y}_i)$. With label smoothing, $y_i$ is the smoothed distribution.
+
+  \item \textbf{Teacher Forcing:} During training, the decoder receives the ground-truth previous token (not its own prediction) as input. Speeds convergence but creates train--inference mismatch.
+
+  \item \textbf{Beam Search:} A decoding strategy that explores multiple candidate sequences simultaneously (beam width $B$). More diverse than greedy decoding but more expensive.
+
+  \item \textbf{GloVe (Global Vectors):} Another pre-transformer embedding method (Pennington et al., 2014). Uses co-occurrence matrix factorization rather than neural networks. Produces static embeddings like Word2vec.
+
+  \item \textbf{GRU (Gated Recurrent Unit):} A simplified variant of LSTM with two gates instead of three. Often comparable performance with fewer parameters.
+
+  \item \textbf{Encoder-Only vs.\ Decoder-Only Architectures:} The full encoder--decoder Transformer is for seq2seq tasks. BERT uses encoder-only (for classification, NER). GPT uses decoder-only (for generation). This is covered in later lectures.
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Build Projects}
+% ══════════════════════════════════════════════════════════════════════════════
+
+These projects force you to apply the concepts from this lecture. Ranked by portfolio signal-to-effort ratio.
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Tokenizer Comparison Benchmark} \textit{(2--4 hours, high signal)}\\
+  Implement word-level, BPE, and character-level tokenizers from scratch (no libraries). Benchmark them on a multilingual corpus: measure vocabulary size, average sequence length, OOV rate, and tokenization speed. Visualize trade-offs. Write it up as a Jupyter notebook with analysis. \emph{Demonstrates:} deep understanding of the tokenization-compute trade-off.
+
+  \item \textbf{Attention Visualizer} \textit{(4--6 hours, high signal)}\\
+  Build an interactive tool (React or Streamlit) that takes a sentence, runs it through a pre-trained Transformer (e.g., BERT via HuggingFace), and visualizes the attention weights as heatmaps for each head and layer. Let users click on a token and see what it attends to. \emph{Demonstrates:} understanding of multi-head attention internals.
+
+  \item \textbf{Mini Transformer from Scratch} \textit{(8--12 hours, highest signal)}\\
+  Implement a small encoder--decoder Transformer in PyTorch (no HuggingFace). Train it on a toy translation task (e.g., reversing sequences, or translating numbers to words). Include: positional encoding, multi-head attention, masking, label smoothing. This is the gold-standard portfolio piece for ``I actually understand Transformers.'' \emph{Tip:} Andrej Karpathy's ``minGPT'' and ``nanoGPT'' are great references for decoder-only; extend to encoder--decoder.
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Explain It Back}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Write or speak your answers to these prompts \emph{without looking at notes}. If you cannot explain it clearly, you do not understand it yet.
+
+\begin{enumerate}[leftmargin=2em]
+  \item Explain to a junior engineer why subword tokenization is preferred over word-level tokenization. Use the example of ``playing,'' ``plays,'' and ``played.''
+
+  \item A product manager asks you: ``Why can't we just use RNNs? They process sequences too.'' Give a 2-minute explanation of why Transformers replaced them, covering both quality (long-range dependencies) and efficiency (parallelism).
+
+  \item Explain the Q, K, V mechanism to someone who has never seen it. Use a real-world analogy (the lecture uses dictionary lookup; try a different one --- e.g., a search engine, a library catalog, or a party where you're looking for the most interesting conversation).
+
+  \item Why does the Transformer need positional encoding? What would go wrong without it? Give a concrete example of two sentences that would be indistinguishable.
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Interview Practice Questions \& Answers}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Questions are tiered: \textbf{L1} = screening/phone, \textbf{L2} = mid-round, \textbf{L3} = deep-dive/follow-up.
+
+% ── Q1 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L1 --- What is the difference between self-attention and cross-attention?]
+\textbf{Answer:} In self-attention, queries, keys, and values all come from the same sequence. Each token attends to every other token in that sequence, producing context-aware representations. In cross-attention, queries come from one sequence (e.g., the decoder) while keys and values come from a different sequence (e.g., the encoder output). Cross-attention is how the decoder ``looks at'' the input when deciding what to generate next.
+\end{notebox}
+
+% ── Q2 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L1 --- Why do we scale dot products by $\sqrt{d_k}$?]
+\textbf{Answer:} As the dimension $d_k$ increases, the dot product of two random vectors grows in variance (proportional to $d_k$). Without scaling, the softmax receives very large inputs, pushing it into saturation regions where gradients are near zero. Dividing by $\sqrt{d_k}$ normalizes the variance to approximately 1, keeping softmax numerically stable and gradients healthy.
+\end{notebox}
+
+% ── Q3 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L2 --- What is the computational complexity of self-attention, and why is it a concern?]
+\textbf{Answer:} The $QK^\top$ matrix multiplication produces an $n \times n$ matrix where $n$ is sequence length. This gives $O(n^2 \cdot d)$ time complexity and $O(n^2)$ memory for the attention matrix. For long sequences (e.g., 100K tokens), this becomes prohibitive. This is why methods like FlashAttention, sparse attention, and linear attention have been developed.
+\end{notebox}
+
+% ── Q4 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L2 --- Explain why multi-head attention is used instead of single-head attention with the same total dimension.]
+\textbf{Answer:} Multi-head attention runs $h$ parallel attention operations, each with dimension $d_k = d_{\text{model}} / h$. Each head can learn different attention patterns (syntactic, semantic, positional). A single head with dimension $d_{\text{model}}$ would compute one attention pattern. With multiple heads, the model captures richer, more diverse relationships. The total computation is roughly the same (since each head operates on $d_k$ instead of $d_{\text{model}}$), but representational capacity increases.
+\end{notebox}
+
+% ── Q5 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L2 --- What is the masking in the decoder's self-attention, and why is it necessary?]
+\textbf{Answer:} The decoder generates tokens autoregressively (left to right). During training, all target tokens are available simultaneously for efficiency (teacher forcing), but each position should only attend to positions $\leq t$ (not future tokens). The mask sets future positions to $-\infty$ before softmax, making their attention weights zero. Without masking, the model would ``cheat'' by looking at tokens it has not yet generated, breaking the autoregressive property.
+\end{notebox}
+
+% ── Q6 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L3 --- What would happen if you removed positional encoding entirely? How would performance degrade?]
+\textbf{Answer:} Without positional encoding, the Transformer treats the input as a \emph{bag of tokens}. It cannot distinguish ``dog bites man'' from ``man bites dog.'' Self-attention alone is permutation-equivariant: permuting the input tokens permutes the output identically. Performance degrades severely on any task requiring word order understanding (nearly all NLP tasks). The model would still capture which tokens co-occur (unigram-like statistics) but lose all sequential/structural information.
+\end{notebox}
+
+% ── Q7 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L3 --- Explain the information flow from a single input token through one full encoder layer.]
+\textbf{Answer:} Start with token embedding $\mathbf{x}$ + positional encoding. (1) Project $\mathbf{x}$ into $Q, K, V$ via learned matrices. (2) Compute attention: $\text{softmax}(QK^\top/\sqrt{d_k})V$, yielding a context-weighted representation. (3) Add residual: $\mathbf{x}' = \mathbf{x} + \text{Attention}(\mathbf{x})$. (4) Layer norm: $\mathbf{x}'' = \text{LN}(\mathbf{x}')$. (5) FFN: expand to $d_{\text{FF}}$, ReLU, project back to $d_{\text{model}}$. (6) Add residual: $\mathbf{x}''' = \mathbf{x}'' + \text{FFN}(\mathbf{x}'')$. (7) Layer norm again. Output is a context-enriched representation of the original token.
+\end{notebox}
+
+% ── Q8 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L2 --- How does label smoothing act as regularization?]
+\textbf{Answer:} Without label smoothing, the model is trained to push the probability of the correct token to 1.0 and all others to 0.0. This forces logits toward infinity, creating overconfident predictions that generalize poorly. Label smoothing sets the target to $1-\epsilon$ for the correct token and distributes $\epsilon$ across all other tokens. This keeps logits bounded, produces softer probability distributions, and acts as a regularizer that discourages the model from being too certain --- which aligns with the reality that language has multiple valid continuations.
+\end{notebox}
+
+% ── Q9 ────────────────────────────────────────────────────────────────────────
+\begin{notebox}[L1 --- What is a proxy task? Give two examples.]
+\textbf{Answer:} A proxy task (or pretext task) is a training objective whose primary goal is not the task itself but the useful representations learned during training. Examples: (1) Word2vec's CBOW/Skip-gram --- predicting surrounding words teaches the model meaningful word embeddings. (2) Masked Language Modeling in BERT --- predicting masked tokens forces the model to learn deep bidirectional context representations.
+\end{notebox}
+
+% ── Q10 ───────────────────────────────────────────────────────────────────────
+\begin{notebox}[L3 --- Compare the information bottleneck in seq2seq RNNs vs.\ Transformers.]
+\textbf{Answer:} In seq2seq RNNs, the entire input sequence is compressed into a single fixed-size vector $\mathbf{h}_T$ (the encoder's final hidden state). All information must pass through this bottleneck, and information from early tokens is often lost. In Transformers, the encoder produces $n$ separate context-aware vectors (one per input token), and the decoder's cross-attention can directly access any of them at each step. There is no single bottleneck vector. This is fundamentally why Transformers handle long sequences and complex dependencies better.
+\end{notebox}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Self-Assessment Test}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\textbf{Instructions:} Answer without looking at notes. Score yourself honestly.\\
+\textbf{Scoring:} 16--20 correct = solid mastery; 12--15 = good, revisit weak spots; $<$12 = re-study before moving on.
+
+\subsection*{Multiple Choice (1 point each)}
+
+\textbf{Q1.} Which tokenization method has the highest risk of OOV tokens?\\
+(a) Character-level \quad (b) Subword-level \quad (c) Word-level \quad (d) BPE
+
+\textbf{Q2.} In Word2vec's Skip-gram, the model predicts:\\
+(a) The target word from context \quad (b) Context words from the target \quad (c) The next sentence \quad (d) Named entities
+
+\textbf{Q3.} What is the dimensionality of the attention score matrix $QK^\top$?\\
+(a) $n \times d_k$ \quad (b) $d_k \times d_k$ \quad (c) $n \times n$ \quad (d) $n \times d_v$
+
+\textbf{Q4.} In the decoder's cross-attention, the queries come from:\\
+(a) The encoder \quad (b) The decoder \quad (c) Both equally \quad (d) The input embeddings directly
+
+\textbf{Q5.} Perplexity of a perfect model that always assigns probability 1 to the correct token is:\\
+(a) 0 \quad (b) 1 \quad (c) $\infty$ \quad (d) Undefined
+
+\textbf{Q6.} Which problem does the LSTM's cell state primarily address?\\
+(a) Computational speed \quad (b) Vanishing gradients / long-range memory \quad (c) Vocabulary size \quad (d) Tokenization
+
+\textbf{Q7.} Label smoothing replaces the target $[0,0,1,0]$ with approximately:\\
+(a) $[0.25, 0.25, 0.25, 0.25]$ \quad (b) $[0.03, 0.03, 0.9, 0.03]$ \quad (c) $[0, 0, 0.9, 0.1]$ \quad (d) $[0.1, 0.1, 0.8, 0]$
+
+\textbf{Q8.} Why do Transformers need positional encoding but RNNs do not?\\
+(a) RNNs have larger vocabulary \quad (b) RNNs process tokens sequentially, inherently encoding order \quad (c) Transformers cannot learn \quad (d) Positional encoding is optional in Transformers
+
+\subsection*{Short Answer (1.5 points each)}
+
+\textbf{Q9.} In one sentence, explain why accuracy alone is insufficient for evaluating a sentiment classifier on an imbalanced dataset.
+
+\textbf{Q10.} Write the scaled dot-product attention formula and label each component.
+
+\textbf{Q11.} What is the fundamental difference between Bahdanau attention (2014) and self-attention (2017)?
+
+\textbf{Q12.} Why is the FFN hidden dimension in the Transformer ($d_{\text{FF}} = 2048$) larger than $d_{\text{model}} = 512$?
+
+\textbf{Q13.} Explain in two sentences what happens when you remove the mask from the decoder's self-attention during training.
+
+\textbf{Q14.} Name two reasons why RNNs are slower to train than Transformers.
+
+\subsection*{Scenario Question (2 points)}
+
+\textbf{Q15.} You are building a multilingual chatbot that must handle English, Hindi, Chinese, and code. The current word-level tokenizer has a vocabulary of 40K and users report frequent \texttt{[UNK]} tokens for Hindi and Chinese inputs. Propose a solution, justify your tokenization choice, estimate the vocabulary size you would target, and explain one trade-off.
+
+\newpage
+\subsection*{Answer Key}
+
+\textbf{Q1.} (c) Word-level
+
+\textbf{Q2.} (b) Context words from the target
+
+\textbf{Q3.} (c) $n \times n$
+
+\textbf{Q4.} (b) The decoder
+
+\textbf{Q5.} (b) 1 --- $\exp(-\frac{1}{N}\sum \ln(1)) = \exp(0) = 1$
+
+\textbf{Q6.} (b) Vanishing gradients / long-range memory
+
+\textbf{Q7.} (b) $[0.03, 0.03, 0.9, 0.03]$ --- for $\epsilon = 0.1$, correct class gets $0.9$, others get $0.1/3 \approx 0.03$
+
+\textbf{Q8.} (b) RNNs process tokens sequentially, inherently encoding order
+
+\textbf{Q9.} A model predicting only the majority class achieves high accuracy but zero recall on the minority class, making it useless for detecting rare-class instances.
+
+\textbf{Q10.} $\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$ where $Q$ = queries, $K$ = keys, $V$ = values, $d_k$ = key dimension, $QK^\top$ = attention scores, softmax = normalization to probability distribution.
+
+\textbf{Q11.} Bahdanau attention connects a decoder to all encoder states (cross-sequence). Self-attention connects every token to every other token \emph{within the same sequence}, enabling context-aware representations without an RNN.
+
+\textbf{Q12.} The expanded hidden dimension gives the FFN enough capacity to learn complex non-linear transformations. It acts as a bottleneck-expansion-bottleneck pattern, providing additional degrees of freedom beyond what attention alone captures.
+
+\textbf{Q13.} Without the mask, the decoder can see future tokens during training, meaning it can trivially copy the next token instead of learning to predict it. This breaks the autoregressive property and the model fails to generate coherently at inference time when future tokens are unavailable.
+
+\textbf{Q14.} (1) RNNs process tokens sequentially --- $\mathbf{h}_t$ depends on $\mathbf{h}_{t-1}$ --- so computation cannot be parallelized across time steps. (2) Backpropagation through time (BPTT) requires unrolling the full sequence, consuming memory proportional to sequence length and compounding numerical issues.
+
+\textbf{Q15.} Switch to a subword tokenizer (SentencePiece or BPE) trained on a multilingual corpus covering all four languages plus code. Target vocabulary $\sim$128K--200K tokens. This dramatically reduces OOV since subword decomposition handles unseen words via known subword pieces. Trade-off: larger vocabulary increases the embedding table size ($V \times d_{\text{model}}$) and softmax computation at the output layer, requiring more memory and slightly slower inference per token.
+
+\vspace{1em}
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}\\[6pt]
+{\small\textit{End of Study Guide --- Lecture 1}}\\[4pt]
+{\small Source: Stanford CME 295, Fall 2025. Afshine \& Shervine Amidi.}\\
+{\small Document prepared for self-study and interview preparation.}
+\end{center}
+
+\end{document}

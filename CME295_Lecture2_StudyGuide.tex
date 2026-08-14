@@ -1,0 +1,773 @@
+\documentclass[11pt, a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{array}
+
+% ── Colors ────────────────────────────────────────────────────────────────────
+\definecolor{defblue}{RGB}{0, 73, 144}
+\definecolor{exgreen}{RGB}{0, 100, 0}
+\definecolor{warnred}{RGB}{180, 30, 30}
+\definecolor{notegray}{RGB}{80, 80, 80}
+\definecolor{lightbg}{RGB}{245, 247, 250}
+\definecolor{purp}{RGB}{100, 0, 140}
+
+% ── tcolorbox environments ────────────────────────────────────────────────────
+\tcbuselibrary{skins, breakable}
+
+\newtcolorbox{defbox}[1][]{
+  colback=blue!3, colframe=defblue, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+\newtcolorbox{exbox}[1][]{
+  colback=green!3, colframe=exgreen, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+\newtcolorbox{warnbox}[1][]{
+  colback=red!3, colframe=warnred, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+\newtcolorbox{notebox}[1][]{
+  colback=lightbg, colframe=notegray, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+\newtcolorbox{mathbox}[1][]{
+  colback=purp!3, colframe=purp, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+% ── Header/Footer ─────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{notegray}{CME 295 -- Lecture 2 Study Guide}}
+\fancyhead[R]{\small\textcolor{notegray}{Transformer Variants \& BERT}}
+\fancyfoot[C]{\thepage}
+
+% ── Section formatting ────────────────────────────────────────────────────────
+\titleformat{\section}{\Large\bfseries\color{defblue}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{defblue!80}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{defblue!60}}{}{0em}{}
+
+\hypersetup{colorlinks=true, linkcolor=defblue, urlcolor=defblue!80}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries\color{defblue} Comprehensive Study Guide}\\[6pt]
+{\Large CME 295: Transformers \& LLMs --- Lecture 2}\\[4pt]
+{\normalsize Transformer Variants, Position Embeddings, Layer Norm, Attention Approximations, BERT}\\[4pt]
+{\small Stanford CME 295 by Afshine \& Shervine Amidi $\cdot$ For: Applied AI/ML Engineers}\\[2pt]
+\rule{\textwidth}{0.4pt}
+\end{center}
+
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Topic Map}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=2em]
+  \item \textbf{Attention Maps \& Multi-Head Interpretability}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Attention weight visualization; anaphora resolution example
+      \item What each head may specialize in
+    \end{enumerate}
+
+  \item \textbf{Position Embeddings (Evolution)}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Learned (absolute) position embeddings --- limitations
+      \item Hardcoded sinusoidal embeddings --- dot-product similarity proof
+      \item Relative position bias in attention layer (T5, ALiBi)
+      \item RoPE (Rotary Position Embeddings) --- the modern default
+    \end{enumerate}
+
+  \item \textbf{Layer Normalization (Evolution)}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Layer Norm formula ($\mu$, $\sigma$, $\gamma$, $\beta$)
+      \item Post-LN (original Transformer) vs.\ Pre-LN (modern)
+      \item RMSNorm --- simplified, fewer parameters
+      \item Difference from Batch Normalization
+    \end{enumerate}
+
+  \item \textbf{Attention Approximations}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item $O(n^2)$ complexity problem
+      \item Sparse attention: Longformer \& sliding window attention (SWA)
+      \item Interleaving local and global attention
+      \item Sharing K/V heads: MQA, GQA, MHA
+    \end{enumerate}
+
+  \item \textbf{Transformer Architecture Families}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Encoder--Decoder: T5, mT5, ByT5; span corruption objective
+      \item Encoder-Only: BERT, DistilBERT, RoBERTa
+      \item Decoder-Only: GPT series (teaser for next lectures)
+    \end{enumerate}
+
+  \item \textbf{BERT Deep Dive}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Architecture: WordPiece tokenizer, special tokens ([CLS], [SEP], [MASK], [PAD])
+      \item Input embedding stack: token + position + segment
+      \item Pre-training: Masked Language Modeling (MLM)
+      \item Pre-training: Next Sentence Prediction (NSP)
+      \item Fine-tuning: sequence classification, token classification (QA)
+      \item Model variants and hyperparameter table
+    \end{enumerate}
+
+  \item \textbf{BERT Variants}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Knowledge distillation and KL divergence
+      \item DistilBERT: halved layers, 97\% performance
+      \item RoBERTa: NSP removal, dynamic masking, more data
+    \end{enumerate}
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Deep-Dive Notes}
+% ══════════════════════════════════════════════════════════════════════════════
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Attention Maps and Head Interpretability}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[Definition: Attention Map]
+A visualization of the attention weight matrix $A = \text{softmax}(QK^\top / \sqrt{d_k})$ for a given head and layer. Entry $A_{ij}$ shows how much token $i$ attends to token $j$. High values indicate strong relevance between those tokens.
+\end{defbox}
+
+The original ``Attention Is All You Need'' paper showed that different heads in the same layer learn qualitatively different attention patterns. One prominent example: in layer 5, heads 5 and 6 appear to resolve \textbf{anaphora} --- for the word \textit{its}, the model correctly attends to \textit{law} and \textit{application}, the two words the pronoun refers to.
+
+\begin{notebox}[What Heads Specialize In]
+While there are no hard constraints forcing heads to be different, empirically they diverge into roles such as:
+\begin{itemize}[leftmargin=1.5em]
+  \item Syntactic relationships (subject--verb agreement)
+  \item Coreference / anaphora resolution
+  \item Positional patterns (attending to the next or previous token)
+  \item Rare-word disambiguation
+\end{itemize}
+Each head has its own projection matrices $W_Q^{(h)}, W_K^{(h)}, W_V^{(h)}$, so computations happen in parallel and are concatenated afterward.
+\end{notebox}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Position Embeddings: Full Evolution}
+% ──────────────────────────────────────────────────────────────────────────────
+
+Since self-attention is permutation-equivariant, position must be injected explicitly. Four approaches have emerged, roughly chronologically.
+
+\subsubsection{Method 1: Learned Absolute Position Embeddings}
+
+\begin{defbox}[Learned Absolute Position Embeddings]
+A lookup table mapping each position index $p \in \{1, \ldots, L_{\max}\}$ to a trainable vector $\mathbf{e}_p \in \mathbb{R}^{d_{\text{model}}}$. These are added to token embeddings: $\mathbf{x}_p = \mathbf{t}_p + \mathbf{e}_p$. Learned end-to-end via gradient descent.
+\end{defbox}
+
+\begin{warnbox}[Limitations]
+\begin{itemize}[leftmargin=1.5em]
+  \item Can only generalize to sequence lengths seen during training (bounded by $L_{\max}$).
+  \item Bias from training distribution: if position 2 always sees a specific type of word, the embedding encodes that bias.
+  \item Cannot extrapolate to longer sequences at inference time.
+\end{itemize}
+\end{warnbox}
+
+\subsubsection{Method 2: Sinusoidal (Hardcoded) Position Embeddings}
+
+\begin{defbox}[Sinusoidal Position Embeddings (Vaswani et al., 2017)]
+For position $m$ and embedding dimension index $i$:
+\begin{align}
+PE_{(m,\, 2i)} &= \sin\!\left(\omega_i \cdot m\right), \quad \omega_i = 10000^{-2i/d_{\text{model}}} \\
+PE_{(m,\, 2i+1)} &= \cos\!\left(\omega_i \cdot m\right)
+\end{align}
+No parameters to learn. The frequency $\omega_i$ is high for small $i$ (fast oscillation) and low for large $i$ (slow oscillation).
+\end{defbox}
+
+\begin{mathbox}[Why Sinusoidal? Dot-Product Similarity Proof]
+Define $\omega_i$ as above. For positions $m$ and $n$, consider one pair of dimensions:
+\[
+\mathbf{p}_m^{(i)} \cdot \mathbf{p}_n^{(i)} = \sin(\omega_i m)\sin(\omega_i n) + \cos(\omega_i m)\cos(\omega_i n) = \cos\!\big(\omega_i(m - n)\big)
+\]
+using the identity $\cos(a - b) = \cos a \cos b + \sin a \sin b$. Summing over all dimension pairs:
+\[
+\mathbf{p}_m \cdot \mathbf{p}_n = \sum_i \cos\!\big(\omega_i(m - n)\big)
+\]
+This is \textbf{a function of the relative distance} $(m - n)$ only. When $m = n$, $\cos(0) = 1$ is maximal. As $|m - n|$ grows, the sum decreases --- matching the intuition that nearby positions should be more similar.
+\end{mathbox}
+
+\begin{notebox}[Benefits Over Learned]
+\begin{itemize}[leftmargin=1.5em]
+  \item No parameters to learn.
+  \item Can generalize to \emph{any} sequence length at inference time.
+  \item Comparable empirical performance to learned embeddings.
+\end{itemize}
+\end{notebox}
+
+\subsubsection{Method 3: Relative Position Bias in Attention (T5, ALiBi)}
+
+The core insight: what we actually need is for the \emph{attention layer} to reflect relative position, not just the inputs. Rather than adding position embeddings to token embeddings, inject position information directly into the attention score matrix.
+
+\begin{defbox}[Relative Position Bias]
+Modify the attention formula by adding a learnable (or deterministic) bias $b_{m,n}$ that depends on the relative distance $|m - n|$:
+\[
+A_{mn} = \text{softmax}\!\left(\frac{\mathbf{q}_m \cdot \mathbf{k}_n}{\sqrt{d_k}} + b_{m,n}\right)
+\]
+The softmax normalizes regardless, so $b_{m,n}$ effectively up- or down-weights certain position pairs.
+\end{defbox}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{T5 bias:} Bucketizes distances into learned scalars, one per head. Flexible but has learnable parameters.
+  \item \textbf{ALiBi (Press et al., 2021):} $b_{m,n} = -\alpha_h \cdot |m - n|$ where $\alpha_h$ is a fixed head-specific slope. Deterministic, no extra parameters. Enables extrapolation to longer sequences than seen during training (``train short, test long'').
+\end{itemize}
+
+\subsubsection{Method 4: RoPE --- Rotary Position Embeddings (Modern Default)}
+
+\begin{defbox}[RoPE (Su et al., 2021 --- RoFormer)]
+Instead of adding position information, \textbf{rotate} the query and key vectors by an angle proportional to their position before computing the dot product. For position $m$ and a 2D subspace:
+\[
+R_m = \begin{pmatrix} \cos(m\theta) & -\sin(m\theta) \\ \sin(m\theta) & \cos(m\theta) \end{pmatrix}
+\]
+The rotated query and key are $\tilde{\mathbf{q}}_m = R_m \mathbf{q}_m$ and $\tilde{\mathbf{k}}_n = R_n \mathbf{k}_n$.
+\end{defbox}
+
+\begin{mathbox}[Why Rotation Gives Relative Distance]
+\begin{align}
+\tilde{\mathbf{q}}_m^\top \tilde{\mathbf{k}}_n &= (R_m \mathbf{q}_m)^\top (R_n \mathbf{k}_n) = \mathbf{q}_m^\top R_m^\top R_n \mathbf{k}_n = \mathbf{q}_m^\top R_{n-m} \mathbf{k}_n
+\end{align}
+using $R_m^\top R_n = R_{n-m}$ (rotation matrices compose by angle subtraction). The dot product is a function of $\mathbf{q}_m$, $\mathbf{k}_n$, and \textbf{only the relative distance} $(n - m)$, not absolute positions.
+\end{mathbox}
+
+\begin{itemize}[leftmargin=2em]
+  \item For $d > 2$: apply 2D rotation block-wise to consecutive pairs of dimensions, with different $\theta$ per block (analogous to sinusoidal $\omega_i$).
+  \item \textbf{Long-term decay:} the upper bound of $\tilde{\mathbf{q}}_m^\top \tilde{\mathbf{k}}_n$ decays as $|m - n|$ grows, producing the desired behavior that distant tokens contribute less.
+  \item Used by: LLaMA, Mistral, Falcon, Qwen, and most modern open-source LLMs.
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\caption{Position Embedding Method Comparison}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Method} & \textbf{Learnable} & \textbf{Extrapolates} & \textbf{Where Applied} & \textbf{Used By} \\
+\midrule
+Learned absolute & Yes & No & Input & Original BERT \\
+Sinusoidal & No & Yes & Input & Original Transformer \\
+T5 bias & Yes & Partial & Attention & T5 family \\
+ALiBi & No & Yes & Attention & Bloom \\
+RoPE & No & Yes & Attention (Q,K) & LLaMA, Mistral \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Layer Normalization: Evolution}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Layer Norm (Ba et al., 2016)}
+
+\begin{defbox}[Layer Normalization Formula]
+Given an activation vector $\mathbf{x} \in \mathbb{R}^d$:
+\[
+\mu = \frac{1}{d}\sum_{j=1}^d x_j, \qquad \sigma^2 = \frac{1}{d}\sum_{j=1}^d (x_j - \mu)^2
+\]
+\[
+\hat{x}_j = \frac{x_j - \mu}{\sigma + \epsilon}, \qquad \text{LN}(\mathbf{x})_j = \gamma_j \hat{x}_j + \beta_j
+\]
+where $\gamma, \beta \in \mathbb{R}^d$ are \textbf{learned} scale and shift parameters. $\epsilon$ is a small constant for numerical stability.
+\end{defbox}
+
+\textbf{Motivation:} During training, activations can have extreme values in some dimensions and near-zero in others. Normalizing within each layer reduces \textbf{internal covariate shift}, improving gradient flow and convergence speed.
+
+\begin{warnbox}[Layer Norm vs.\ Batch Norm]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Batch Norm:} Normalizes across the \emph{batch dimension} for each feature. Requires sufficiently large batches; statistics differ between train and inference.
+  \item \textbf{Layer Norm:} Normalizes across the \emph{feature dimension} for each sample independently. No batch dependency. Preferred for NLP and Transformers.
+\end{itemize}
+\end{warnbox}
+
+\subsubsection{Post-LN vs.\ Pre-LN}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Post-LN (original Transformer):} $\text{LN}(\mathbf{x} + \text{sublayer}(\mathbf{x}))$ --- normalize \emph{after} the residual addition.
+  \item \textbf{Pre-LN (modern default):} $\mathbf{x} + \text{sublayer}(\text{LN}(\mathbf{x}))$ --- normalize \emph{before} the sublayer. The gradient flows through the residual stream without passing through a normalization operation, improving training stability in deep networks.
+\end{itemize}
+
+\subsubsection{RMSNorm (Zhang \& Sennrich, 2019)}
+
+\begin{defbox}[Root Mean Square Normalization]
+\[
+\text{RMS}(\mathbf{x}) = \sqrt{\frac{1}{d}\sum_{j=1}^d x_j^2}, \qquad \text{RMSNorm}(\mathbf{x})_j = \frac{x_j}{\text{RMS}(\mathbf{x})} \cdot \gamma_j
+\]
+Drops the mean subtraction and the $\beta$ term. Learns only $\gamma$.
+\end{defbox}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{Why:} The authors show that re-centering (subtracting mean) is less important than re-scaling. Removing it reduces parameters and is computationally cheaper.
+  \item Comparable convergence to Layer Norm.
+  \item Used by: LLaMA, Mistral, most modern LLMs.
+\end{itemize}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Attention Approximations}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{The $O(n^2)$ Problem}
+
+The core bottleneck of standard self-attention: computing $QK^\top$ requires $O(n^2 \cdot d)$ time and $O(n^2)$ memory. For $n = 100{,}000$ tokens, the attention matrix alone is $100{,}000 \times 100{,}000$ --- intractable.
+
+\subsubsection{Sparse Attention: Sliding Window Attention (SWA)}
+
+\begin{defbox}[Sliding Window Attention]
+Each token attends only to its $w$ nearest neighbors (a local window of radius $w/2$ on each side). Complexity drops from $O(n^2)$ to $O(n \cdot w)$.
+\end{defbox}
+
+\begin{exbox}[Effective Receptive Field]
+Even with a window of size $w$ per layer, after $k$ stacked layers, a token has an effective receptive field of $k \cdot w$ tokens --- analogous to receptive field expansion in CNNs via stacked convolutions. Mistral 7B uses SWA: window = 4096 tokens per layer but $n$ stacked layers means the full context is accessible through the layer stack.
+\end{exbox}
+
+\begin{notebox}[Global + Local Interleaving]
+In practice, models interleave layers with:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Local (SWA) layers:} attend to nearby tokens only ($O(nw)$)
+  \item \textbf{Global layers:} attend to all tokens ($O(n^2)$, but fewer of these layers)
+\end{itemize}
+Certain tokens (e.g., [CLS]) may always receive global attention to act as information aggregation points (Longformer approach).
+\end{notebox}
+
+\subsubsection{Sharing Attention Heads: MQA, GQA, MHA}
+
+Motivation: During autoregressive decoding, keys and values from all past tokens must be recomputed or cached (the \textbf{KV cache}). With $h$ heads, the KV cache grows as $O(n \cdot h \cdot d_k)$, which becomes very large for long contexts.
+
+\begin{defbox}[MHA, GQA, MQA --- Formally]
+Let $h$ = number of query heads, $g$ = number of KV groups.
+
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Multi-Head Attention (MHA):} $g = h$. Every head has its own $W_Q^{(i)}, W_K^{(i)}, W_V^{(i)}$. Maximum expressivity, maximum KV cache.
+  \item \textbf{Group Query Attention (GQA):} $g < h$. $h/g$ query heads share one K/V projection. KV cache reduced by factor $h/g$. Used in LLaMA 3, Mistral.
+  \item \textbf{Multi-Query Attention (MQA):} $g = 1$. All query heads share a single K/V projection. Maximum KV cache saving, some quality loss.
+\end{itemize}
+\end{defbox}
+
+\begin{notebox}[Why Share K/V but not Q?]
+The query represents ``what this token is looking for'' --- diversity here is semantically meaningful (each head can ask a different question). Keys and values represent ``what am I and what do I contain'' --- sharing them reduces KV cache pressure without significantly harming representation quality. Empirically, GQA closely matches MHA performance at reduced memory cost.
+\end{notebox}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{Transformer Architecture Families}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{table}[h]
+\centering
+\caption{Three Families of Transformer-Based Models}
+\begin{tabular}{@{}p{3cm}p{3cm}p{4cm}p{4cm}@{}}
+\toprule
+\textbf{Family} & \textbf{Architecture} & \textbf{Training Objective} & \textbf{Examples} \\
+\midrule
+Encoder--Decoder & Full Transformer & Span corruption (T5), next-token (original) & T5, mT5, ByT5 \\
+\addlinespace
+Encoder-Only & Encoder stack only & MLM + NSP (BERT) & BERT, DistilBERT, RoBERTa \\
+\addlinespace
+Decoder-Only & Decoder stack only (masked self-attention + FFN) & Next-token prediction & GPT series, LLaMA, Mistral \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{T5 Family (Encoder--Decoder)}
+
+\begin{defbox}[Span Corruption Objective (T5)]
+Instead of next-token prediction, T5 trains on \textbf{span corruption}: randomly mask contiguous spans of tokens in the input, replace each span with a unique sentinel token (e.g., \texttt{<extra\_id\_0>}), and train the decoder to reconstruct the masked spans in sequence.
+
+Example:\\
+Input to encoder: \texttt{My <extra\_id\_0> is reading <extra\_id\_1>.}\\
+Decoder target: \texttt{<extra\_id\_0> teddy bear <extra\_id\_1> quietly}
+\end{defbox}
+
+T5 variants:
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{mT5:} Multilingual T5, trained on 101 languages.
+  \item \textbf{ByT5:} Byte-level T5, no tokenizer. Vocabulary = 256 (all byte values). More robust to typos and rare languages; longer sequences.
+\end{itemize}
+
+\subsubsection{Decoder-Only Models (teaser)}
+
+Remove the encoder entirely. Each decoder block has only:
+\begin{enumerate}[leftmargin=2em]
+  \item Masked self-attention (causal)
+  \item FFN
+\end{enumerate}
+No cross-attention (nothing to cross-attend to). Trained on next-token prediction. Scales extremely well. Dominant paradigm since 2020. Will be covered in depth in future lectures.
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{BERT: Architecture Deep Dive}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[BERT = Bidirectional Encoder Representations from Transformers (Devlin et al., 2018)]
+BERT takes the encoder stack from the Transformer and pre-trains it with two self-supervised proxy tasks (MLM + NSP) on large unlabeled corpora. It produces rich, \textbf{bidirectional} contextual representations suitable for fine-tuning on classification tasks.
+\end{defbox}
+
+\textbf{Bidirectionality:} Each token attends to all other tokens (no causal mask). Contrast with GPT's masked (causal) self-attention where each token only sees tokens before it. BERT's full mutual attention is the defining property.
+
+\subsubsection{Tokenization: WordPiece}
+
+\begin{defbox}[WordPiece Algorithm]
+A learned subword tokenizer that iteratively merges token pairs by maximizing the \textbf{likelihood} of the training corpus under the tokenized representation (as opposed to BPE which maximizes frequency count). Produces a vocabulary of $\sim$30K tokens. Continuation pieces are prefixed with \texttt{\#\#}.
+\end{defbox}
+
+\subsubsection{Special Tokens}
+
+\begin{itemize}[leftmargin=2em]
+  \item \textbf{[CLS]:} Classification token. Prepended to every input. After passing through all encoder layers, the output embedding of [CLS] serves as a sequence-level representation for downstream classification.
+  \item \textbf{[SEP]:} Separator token. Marks the boundary between two input segments (sentences A and B) and appears at the end of each.
+  \item \textbf{[MASK]:} Masking token. Replaces selected tokens during MLM pre-training.
+  \item \textbf{[PAD]:} Padding token. Used to bring sequences in a batch to uniform length. Typically masked out in attention.
+\end{itemize}
+
+\subsubsection{Input Embedding Stack}
+
+BERT's input representation is a sum of three learned embeddings:
+
+\begin{mathbox}[BERT Input Representation]
+\[
+\mathbf{x}_i = \underbrace{\mathbf{e}_{\text{token}}(t_i)}_{\text{Token embedding}} + \underbrace{\mathbf{e}_{\text{pos}}(i)}_{\text{Position embedding}} + \underbrace{\mathbf{e}_{\text{seg}}(s_i)}_{\text{Segment embedding}}
+\]
+where $s_i \in \{A, B\}$ denotes which sentence the token belongs to.
+\end{mathbox}
+
+\textbf{Segment embedding} is new to BERT: a shared embedding $\mathbf{e}_A$ for all tokens in sentence A and $\mathbf{e}_B$ for all tokens in sentence B. Designed to help the NSP task by marking sentence boundaries in the embedding space. (RoBERTa later showed it contributes little and removed it.)
+
+\subsubsection{Pre-Training: Masked Language Modeling (MLM)}
+
+\begin{defbox}[MLM Protocol]
+From the input, 15\% of tokens are selected for prediction. Of those selected:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{80\%:} Replace with [MASK] token.
+  \item \textbf{10\%:} Replace with a random vocabulary token.
+  \item \textbf{10\%:} Keep the original token unchanged.
+\end{itemize}
+The model must predict the original token for every selected position.
+\end{defbox}
+
+\begin{notebox}[Why Not Just Mask 100\%?]
+If all selected tokens were replaced with [MASK], the model would learn that [MASK] always needs predicting --- creating a train/inference mismatch since [MASK] never appears at inference time. The 10\% random + 10\% unchanged acts as regularization, forcing the model to maintain good representations for \emph{all} tokens, not just masked ones.
+\end{notebox}
+
+The MLM task forces the model to use \textbf{bidirectional context}: to predict the masked word, it must look at both left and right neighbors. This is why BERT's representations are bidirectional.
+
+\subsubsection{Pre-Training: Next Sentence Prediction (NSP)}
+
+\begin{defbox}[NSP Protocol]
+Sample two sentences A and B:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{50\% of the time:} B is the actual next sentence following A in the corpus (label: IsNext).
+  \item \textbf{50\% of the time:} B is a random sentence from the corpus (label: NotNext).
+\end{itemize}
+Input: \texttt{[CLS] A [SEP] B [SEP]}. The [CLS] output is projected to a binary classifier.
+\end{defbox}
+
+\textbf{Note:} RoBERTa (2019) showed that removing NSP has negligible impact or even slightly improves performance. The hypothesis is that NSP is too easy --- random sentences are trivially different from consecutive ones.
+
+\subsubsection{BERT Hyperparameters}
+
+\begin{table}[h]
+\centering
+\caption{BERT Model Configurations}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Model} & \textbf{L (layers)} & \textbf{H (dim)} & \textbf{A (heads)} & \textbf{Params} \\
+\midrule
+BERT-Tiny   & 2  & 128  & 2  & 4M   \\
+BERT-Mini   & 4  & 256  & 4  & 11M  \\
+BERT-Small  & 4  & 512  & 8  & 30M  \\
+BERT-Medium & 8  & 512  & 8  & 42M  \\
+BERT-Base   & 12 & 768  & 12 & 110M \\
+BERT-Large  & 24 & 1024 & 16 & 340M \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Fine-Tuning BERT}
+
+\begin{defbox}[Fine-Tuning Strategy]
+After pre-training, add task-specific heads on top of the frozen (or partially frozen) BERT encoder and train on labeled data:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Sequence classification} (e.g., sentiment): project [CLS] output through a linear layer to class logits. Requires very little labeled data.
+  \item \textbf{Token classification} (e.g., NER, QA span detection): project each token's output embedding through a linear layer. For QA: two separate classifiers predict start and end span positions.
+\end{itemize}
+\end{defbox}
+
+\begin{notebox}[Freezing Strategy]
+Common practice: freeze the first few encoder layers (they learn generic representations) and fine-tune only the top layers and the task head. The closer the downstream task is to the pre-training distribution, the fewer layers need fine-tuning.
+\end{notebox}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\subsection{BERT Variants}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Knowledge Distillation}
+
+\begin{defbox}[Knowledge Distillation (Hinton et al., 2014)]
+Train a smaller \textbf{student} model to match the \textbf{output distribution} (soft targets) of a larger \textbf{teacher} model, rather than training on hard one-hot labels.
+
+\textbf{Objective:} minimize the KL divergence between student and teacher distributions:
+\[
+\mathcal{L}_{\text{distill}} = D_{\text{KL}}(P_T \| P_S) = \sum_v P_T(v) \log \frac{P_T(v)}{P_S(v)}
+\]
+Note: if $P_T$ is a hard label (one-hot), this reduces to the standard cross-entropy loss.
+\end{defbox}
+
+\begin{notebox}[Why Soft Targets Are Better]
+The teacher's full probability distribution over the vocabulary encodes \emph{similarity information} that hard labels do not. For example, if the teacher assigns 0.01 probability to ``cat'' and 0.001 to ``dog'' when the correct answer is ``animal,'' the student learns that ``cat'' is more similar to ``animal'' than ``dog'' is. This ``dark knowledge'' is lost in a one-hot label.
+\end{notebox}
+
+\subsubsection{DistilBERT (Sanh et al., 2019)}
+
+\begin{itemize}[leftmargin=2em]
+  \item Reduces layers from 12 to 6 (BERT-Base to DistilBERT-Base).
+  \item Uses distillation to transfer knowledge from BERT-Base (teacher) to DistilBERT (student).
+  \item Also initializes student weights from every other layer of the teacher.
+  \item \textbf{Result:} $\sim$1.6$\times$ faster, $\sim$40\% fewer parameters, retains $\sim$97\% of BERT-Base performance on GLUE.
+\end{itemize}
+
+\subsubsection{RoBERTa (Liu et al., 2019)}
+
+RoBERTa (Robustly Optimized BERT Pre-training Approach) is an empirical study of what actually matters in BERT pre-training.
+
+\begin{table}[h]
+\centering
+\caption{RoBERTa Changes vs.\ BERT}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Change} & \textbf{BERT} & \textbf{RoBERTa} \\
+\midrule
+NSP objective & Used & \textbf{Removed} (no impact) \\
+Segment encoding & Used & \textbf{Removed} \\
+Masking & Static (fixed at preprocessing) & \textbf{Dynamic} (re-masked each epoch) \\
+Pretraining data & 16 GB (BookCorpus + Wikipedia) & \textbf{160 GB} (+ CC-News, OpenWebText, Stories) \\
+Training steps & 1M steps, batch size 256 & 500k steps, \textbf{batch size 8k} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Result:} +4\% on downstream benchmarks with the same architecture. The dominant lesson: BERT was massively undertrained. More data and longer training matter more than architectural tricks like NSP.
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Related Concepts You Should Also Know}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{KV Cache:} During autoregressive decoding, the key and value matrices for all previously generated tokens are stored (cached) to avoid recomputation. Cache size = $O(n \cdot h \cdot d_k)$ per layer. GQA/MQA directly reduce this by sharing K/V heads.
+
+  \item \textbf{FlashAttention (Dao et al., 2022):} A hardware-aware exact attention algorithm that avoids materializing the full $n \times n$ attention matrix in HBM (GPU memory) by computing attention in tiles. Achieves $O(n)$ memory and 2--4$\times$ wall-clock speedup with identical numerical output to standard attention.
+
+  \item \textbf{Internal Covariate Shift:} The change in input distribution to a layer as parameters of preceding layers update. Layer Norm and Batch Norm both combat this, but via different normalization axes.
+
+  \item \textbf{Residual Connection (Skip Connection):} $\mathbf{x}' = \mathbf{x} + f(\mathbf{x})$. Allows gradients to flow directly from later to earlier layers without passing through nonlinearities. Critical for training deep Transformers. The ``Add'' in ``Add \& Norm.''
+
+  \item \textbf{GLUE / SuperGLUE Benchmarks:} Standard NLP benchmark suites used to evaluate BERT-style models. GLUE: 9 classification tasks (SST-2 for sentiment, MNLI for entailment, etc.). SuperGLUE: harder follow-up. BERT, RoBERTa, and their variants are commonly compared on these.
+
+  \item \textbf{ELMo (Peters et al., 2018):} Embeddings from Language Models. Used a bidirectional LSTM (not Transformer) to produce contextual word representations. Published the same year as BERT; outclassed by BERT due to LSTM's scaling limitations.
+
+  \item \textbf{Teacher Forcing:} During decoder training, the ground-truth previous token is fed as input (not the model's own prediction). Speeds up training but creates a train/inference mismatch (exposure bias).
+
+  \item \textbf{ALBERT:} Another BERT variant (not covered in lecture). Uses factorized embedding parameterization (separates vocabulary embedding size from hidden size) and cross-layer parameter sharing to reduce parameters.
+
+  \item \textbf{Anaphora Resolution:} The NLP task of linking pronouns or noun phrases to the entities they refer to (e.g., ``The lawyer said \textit{its} application was ready'' $\to$ \textit{its} refers to \textit{lawyer}'s entity). One of the phenomena interpretably captured by multi-head attention.
+
+  \item \textbf{Context Window Limits:} Early BERT was limited to 512 tokens. Longformer (with SWA) extended this to 4096+. Modern LLMs (LLaMA 3, Claude, GPT-4) support 128K+ tokens, enabled by RoPE, GQA, and FlashAttention together.
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Build Projects}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{RoPE from Scratch} \textit{(3--5 hours, high signal)}\\
+  Implement RoPE in PyTorch. Start with the 2D case (prove the relative-distance property by computing $\tilde{q}_m^\top \tilde{k}_n$ symbolically). Then implement the block-diagonal extension for arbitrary $d$. Plug it into a minimal self-attention module and verify that the attention score matrix is truly a function of $(m - n)$ only by checking symmetry. Write a short blog post or notebook explaining the math. This is a high-signal interview piece for LLM engineering roles.
+
+  \item \textbf{BERT Fine-Tuning Pipeline} \textit{(4--6 hours, very high signal)}\\
+  Fine-tune BERT-Base (or DistilBERT for speed) on a real classification dataset using HuggingFace Transformers. Experiment with: (a) freezing all layers except the classification head vs.\ full fine-tuning, (b) varying learning rate with warmup schedule, (c) comparing BERT-Base vs.\ DistilBERT performance and latency. Document the trade-offs. This directly maps to industry use cases.
+
+  \item \textbf{Attention Complexity Profiler} \textit{(3--4 hours, medium signal)}\\
+  Write a PyTorch script that profiles standard MHA vs.\ a windowed SWA implementation for increasing sequence lengths ($n = 512, 1024, 2048, 4096, 8192$). Measure: peak GPU memory, forward-pass time, and output similarity (MHA vs.\ SWA). Plot the results. Demonstrates understanding of the $O(n^2)$ bottleneck and practical mitigation.
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Explain It Back}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item You've been asked to choose a positional encoding method for a new LLM that needs to handle documents up to 200K tokens, when the training set only has documents up to 8K tokens. Walk through the trade-offs of sinusoidal, ALiBi, and RoPE, and justify your choice.
+
+  \item A team member argues: ``Let's keep using Post-LN like in the original Transformer --- it worked in the paper.'' Explain (a) what Post-LN vs.\ Pre-LN means, (b) why Pre-LN is preferred for deep networks, and (c) why RMSNorm is an improvement over standard Layer Norm.
+
+  \item A PM asks: ``We already have BERT working. Why would we want DistilBERT?'' Give a concrete business case (latency, cost, performance trade-off) and explain how distillation avoids training from scratch.
+
+  \item Explain why BERT is ``bidirectional'' while GPT is not, using a specific example sentence. Then explain what this means for the types of tasks each model is suited for.
+\end{enumerate}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Interview Practice Questions \& Answers}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}[L1 --- What is RoPE and why do most modern LLMs use it?]
+\textbf{Answer:} RoPE (Rotary Position Embeddings) encodes position by rotating query and key vectors in the attention layer by an angle proportional to their position. The key property is that the dot product $\tilde{q}_m^\top \tilde{k}_n$ depends only on the relative distance $(n-m)$, not absolute positions. This is mathematically guaranteed by the composition of rotation matrices: $R_m^\top R_n = R_{n-m}$. Benefits over alternatives: no learned parameters (unlike T5 bias), no extrapolation bound (unlike learned absolute embeddings), and natural long-term decay as distance grows. Used by LLaMA, Mistral, Falcon, and virtually all modern open-source LLMs.
+\end{notebox}
+
+\begin{notebox}[L1 --- What is the difference between GQA and MQA? When would you use each?]
+\textbf{Answer:} In MHA (standard), every attention head has its own $W_Q, W_K, W_V$ projections. In MQA (Multi-Query Attention), all query heads share one single $W_K, W_V$ pair, minimizing KV cache memory. In GQA (Grouped Query Attention), query heads are divided into $g$ groups, each group sharing one $W_K, W_V$ pair. GQA is a soft middle ground between MHA expressivity and MQA efficiency. Use MQA for extreme memory-constrained serving (maximum KV cache reduction, some quality loss). Use GQA when you want near-MHA quality with significantly reduced cache (e.g., LLaMA 3 uses GQA). Use MHA when you have sufficient memory and want maximum expressivity.
+\end{notebox}
+
+\begin{notebox}[L2 --- Why did RoBERTa remove the NSP objective from BERT, and what did they learn?]
+\textbf{Answer:} RoBERTa removed NSP and found essentially no drop in performance (and sometimes slight improvements). The hypothesis is that NSP is too easy --- the negative examples are random sentences from completely different documents, making them trivially distinguishable from true consecutive sentences via topic alone, without requiring deeper discourse understanding. The model was learning a trivial shortcut, not meaningful sentence relationships. The broader lesson from RoBERTa: BERT was dramatically undertrained. Scaling data from 16 GB to 160 GB, using dynamic masking (re-mask each epoch), and larger batch sizes gave +4\% on downstream benchmarks with the \emph{same} architecture.
+\end{notebox}
+
+\begin{notebox}[L2 --- Explain the MLM masking strategy (80/10/10) and why each component exists.]
+\textbf{Answer:} Of the 15\% of tokens selected for prediction: 80\% are replaced with [MASK], 10\% with a random word, and 10\% are kept unchanged. The 80\% [MASK] is the primary training signal --- the model must predict the original from context. The 10\% random replacement prevents the model from learning ``if it's [MASK], just predict something'' --- it must maintain good representations for all tokens since any could be the prediction target. The 10\% unchanged forces the model to not assume every token needs correction --- it must also correctly represent tokens that are already in their correct form. Together they create a more robust representation that works at inference time when no [MASK] tokens appear.
+\end{notebox}
+
+\begin{notebox}[L2 --- What is the KV cache and how does GQA reduce its memory footprint?]
+\textbf{Answer:} During autoregressive decoding, computing attention for a new token requires the keys and values of all previous tokens. Rather than recomputing these at every step, they are cached in GPU memory. For a model with $h$ heads, $L$ layers, $n$ generated tokens, and $d_k$ per head, the KV cache size is $2 \cdot L \cdot h \cdot n \cdot d_k$ (factor 2 for K and V). With GQA using $g$ KV groups (instead of $h$), this becomes $2 \cdot L \cdot g \cdot n \cdot d_k$, reducing memory by a factor of $h/g$. For LLaMA 3-70B with $h=64$ heads and $g=8$ groups, the KV cache is 8$\times$ smaller than MHA, enabling longer context windows within the same memory budget.
+\end{notebox}
+
+\begin{notebox}[L3 --- Why is Pre-LN preferred over Post-LN in modern deep Transformers?]
+\textbf{Answer:} In Post-LN, the gradient path from the loss to the input of an early layer always passes through layer normalization operations. At initialization, this can make the gradient signal to early layers very small, requiring careful learning rate warmup schedules. In Pre-LN, the residual stream $\mathbf{x}$ always has a direct gradient path to the loss (via the residual connections), regardless of depth. The sublayer's input is normalized, but the residual bypass is clean. This makes Pre-LN models easier to train without extensive warmup and enables stable training of very deep networks ($N > 24$ layers) that Post-LN struggles with.
+\end{notebox}
+
+\begin{notebox}[L3 --- Prove that sinusoidal dot products are a function of relative distance only.]
+\textbf{Answer:} For a single dimension pair $i$, the position embedding components are $\sin(\omega_i m)$ and $\cos(\omega_i m)$ for position $m$. The contribution of this pair to the dot product between position embeddings $\mathbf{p}_m$ and $\mathbf{p}_n$ is:
+\[
+\sin(\omega_i m)\sin(\omega_i n) + \cos(\omega_i m)\cos(\omega_i n) = \cos(\omega_i m - \omega_i n) = \cos(\omega_i (m-n))
+\]
+using the identity $\cos(a-b) = \cos a \cos b + \sin a \sin b$. Summing over all $d/2$ dimension pairs: $\mathbf{p}_m \cdot \mathbf{p}_n = \sum_{i=0}^{d/2-1} \cos(\omega_i(m-n))$, which depends only on the relative distance $(m-n)$, not on $m$ or $n$ individually.
+\end{notebox}
+
+\begin{notebox}[L1 --- What is the [CLS] token in BERT and how does it work?]
+\textbf{Answer:} [CLS] is a special classification token prepended to every BERT input. It has no semantic meaning by itself --- it is a placeholder. After the input passes through all $L$ encoder layers, every token's representation has attended to every other token via the bidirectional self-attention. The [CLS] output embedding therefore contains a mixture of all input token representations, weighted by what the model learned is relevant for prediction. A linear layer is placed on top of this [CLS] output to produce class logits. The [CLS] representation is sequence-level because it was explicitly trained (via NSP and downstream fine-tuning) to be useful for whole-sequence classification tasks.
+\end{notebox}
+
+\newpage
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Self-Assessment Test}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\textbf{Scoring:} 16--20 = solid mastery; 12--15 = revisit weak areas; $<$12 = re-study before moving on.
+
+\subsection*{Multiple Choice (1 point each)}
+
+\textbf{Q1.} RoPE encodes position by:\\
+(a) Adding sinusoidal vectors to token embeddings\quad
+(b) Rotating Q and K vectors in the attention layer\quad
+(c) Learning a bias per position per head\quad
+(d) Appending position IDs to the vocabulary
+
+\textbf{Q2.} In GQA with $h=32$ query heads and $g=4$ groups, how many K/V projection matrices are there?\\
+(a) 32\quad (b) 4\quad (c) 8\quad (d) 128
+
+\textbf{Q3.} RMSNorm differs from Layer Norm by:\\
+(a) Normalizing across the batch instead of features\quad
+(b) Removing the mean subtraction and the $\beta$ term\quad
+(c) Using $\ell_2$ norm instead of standard deviation\quad
+(d) Applying normalization after the residual connection
+
+\textbf{Q4.} In BERT's MLM, if a token is selected for prediction, it is replaced with [MASK]:\\
+(a) 100\% of the time\quad (b) 80\% of the time\quad (c) 15\% of the time\quad (d) 10\% of the time
+
+\textbf{Q5.} Which property of the sinusoidal positional encoding is its main advantage over learned embeddings?\\
+(a) Lower perplexity on downstream tasks\quad
+(b) Can generalize to sequence lengths not seen in training\quad
+(c) Requires fewer parameters\quad
+(d) Both (b) and (c)
+
+\textbf{Q6.} BERT's NSP objective was shown by RoBERTa to:\\
+(a) Dramatically improve NER performance\quad
+(b) Have negligible impact on performance\quad
+(c) Be essential for question answering\quad
+(d) Require segment embeddings to work
+
+\textbf{Q7.} In the Longformer's sliding window attention, what is the relationship to convolutional receptive fields?\\
+(a) SWA is mathematically equivalent to a 1D convolution\quad
+(b) Stacking SWA layers expands the effective receptive field analogously to stacked convolutions\quad
+(c) SWA uses convolutional kernels instead of attention\quad
+(d) There is no relationship
+
+\textbf{Q8.} The KV cache is relevant because:\\
+(a) It stores all training data for fast lookup\quad
+(b) During inference, K and V of past tokens are cached to avoid recomputation at each generation step\quad
+(c) It caches gradient values for faster backprop\quad
+(d) It replaces the need for positional encoding
+
+\subsection*{Short Answer (1.5 points each)}
+
+\textbf{Q9.} Write the RMSNorm formula and explain in one sentence why it removes the mean subtraction.
+
+\textbf{Q10.} What are the three components summed in BERT's input embedding for each token? Name all three and explain what is new compared to the original Transformer.
+
+\textbf{Q11.} In Pre-LN, write the formula for passing an input $\mathbf{x}$ through one Transformer sublayer (e.g., self-attention). How does this differ from Post-LN?
+
+\textbf{Q12.} What is the distillation loss (KL divergence) minimizing? When does it reduce to standard cross-entropy?
+
+\textbf{Q13.} Why are K/V heads shared across query groups in GQA, but not Q heads?
+
+\textbf{Q14.} State two specific changes RoBERTa made to the BERT pre-training process and the result.
+
+\subsection*{Scenario (2 points)}
+
+\textbf{Q15.} Your team needs to deploy a sentiment classifier for customer reviews in a latency-sensitive mobile application. You have 50K labeled examples. The constraint: inference must be $< 20$ms on a mobile CPU. Compare BERT-Base, DistilBERT, and a fine-tuned RoBERTa. Which would you choose, why, and what fine-tuning strategy would you use?
+
+\newpage
+\subsection*{Answer Key}
+
+\textbf{Q1.} (b) --- Rotating Q and K in the attention layer.
+
+\textbf{Q2.} (b) --- 4. There are $g=4$ KV groups, so 4 distinct $W_K$ and $W_V$ matrices.
+
+\textbf{Q3.} (b) --- Removes mean subtraction and the $\beta$ shift parameter; normalizes by RMS only.
+
+\textbf{Q4.} (b) --- 80\%. The other 10\% get a random token, and 10\% remain unchanged.
+
+\textbf{Q5.} (d) --- Both (b) and (c). No learned parameters, and extrapolates to unseen lengths.
+
+\textbf{Q6.} (b) --- NSP had negligible impact; RoBERTa removed it without performance loss.
+
+\textbf{Q7.} (b) --- Stacking SWA layers creates an expanding effective receptive field, analogous to CNNs.
+
+\textbf{Q8.} (b) --- Caches K and V for previously generated tokens to avoid recomputing them at each decoding step.
+
+\textbf{Q9.}
+\[
+\text{RMSNorm}(\mathbf{x})_j = \frac{x_j}{\sqrt{\frac{1}{d}\sum_k x_k^2}} \cdot \gamma_j
+\]
+The mean subtraction is dropped because the authors showed that re-centering contributes little to training stability compared to re-scaling, and removing it reduces computation and parameters.
+
+\textbf{Q10.} Token embedding + Position embedding + \textbf{Segment embedding}. The segment embedding is new to BERT --- a shared learned embedding ($\mathbf{e}_A$ or $\mathbf{e}_B$) added to all tokens in the same sentence segment to support the NSP task. The original Transformer had no segment embedding.
+
+\textbf{Q11.} Pre-LN: $\mathbf{x}' = \mathbf{x} + \text{sublayer}(\text{LN}(\mathbf{x}))$. Post-LN: $\mathbf{x}' = \text{LN}(\mathbf{x} + \text{sublayer}(\mathbf{x}))$. In Pre-LN, gradients flow directly through the residual $\mathbf{x}$ without passing through LN, enabling more stable training of deep networks.
+
+\textbf{Q12.} KL divergence minimizes $D_{\text{KL}}(P_T \| P_S) = \sum_v P_T(v)\log\frac{P_T(v)}{P_S(v)}$, which measures how poorly the student distribution $P_S$ approximates the teacher's world view $P_T$. When $P_T$ is a one-hot hard label, $P_T(v) = 1$ for the correct class and 0 elsewhere, reducing the KL divergence to $-\log P_S(\text{correct}) = \text{cross-entropy}$.
+
+\textbf{Q13.} Query heads remain diverse because different queries (``what am I looking for?'') capture different types of relationships. Sharing K/V heads reduces KV cache memory proportionally to $h/g$ while having minimal quality impact --- empirically, the keys and values (``what I contain and provide'') are more homogeneous across heads than the queries.
+
+\textbf{Q14.} Any two of: (1) Removed NSP objective $\to$ no performance loss. (2) Dynamic masking (re-mask each epoch) instead of static $\to$ more diverse training signal. (3) Data: 16 GB $\to$ 160 GB $\to$ +4\% on benchmarks. (4) Larger batch size (8k vs.\ 256 with more steps).
+
+\textbf{Q15.} \textbf{Choose DistilBERT.} BERT-Base (110M params) is far too slow for 20ms on mobile CPU --- typical BERT-Base inference on CPU is 100--200ms. RoBERTa has the same architecture as BERT-Base (340M for Large), so same latency issue. DistilBERT-Base (66M params, 6 layers) is $\sim$1.6$\times$ faster than BERT-Base and retains 97\% performance, making it viable for mobile. Fine-tuning strategy: (1) Load pre-trained DistilBERT from HuggingFace. (2) Add a linear classification head on top of the [CLS] output. (3) With 50K labeled examples, full fine-tuning (unfreeze all layers) with a low learning rate ($2 \times 10^{-5}$) and linear warmup over 10\% of steps. (4) If latency still exceeds 20ms, quantize to INT8 (post-training quantization) for an additional $\sim$2$\times$ speedup with minimal accuracy loss.
+
+\vspace{1em}
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}\\[6pt]
+{\small\textit{End of Study Guide --- Lecture 2}}\\[4pt]
+{\small Source: Stanford CME 295, Fall 2025. Afshine \& Shervine Amidi.}
+\end{center}
+
+\end{document}
