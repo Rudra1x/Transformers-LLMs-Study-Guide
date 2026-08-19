@@ -1,0 +1,729 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{array}
+
+\definecolor{defblue}{RGB}{0, 73, 144}
+\definecolor{exgreen}{RGB}{0, 100, 0}
+\definecolor{warnred}{RGB}{180, 30, 30}
+\definecolor{notegray}{RGB}{80, 80, 80}
+\definecolor{lightbg}{RGB}{245, 247, 250}
+\definecolor{purp}{RGB}{100, 0, 140}
+\definecolor{teal}{RGB}{0, 110, 110}
+
+\tcbuselibrary{skins, breakable}
+\newtcolorbox{defbox}[1][]{colback=blue!3, colframe=defblue, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{exbox}[1][]{colback=green!3, colframe=exgreen, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{warnbox}[1][]{colback=red!3, colframe=warnred, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{notebox}[1][]{colback=lightbg, colframe=notegray, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{mathbox}[1][]{colback=purp!3, colframe=purp, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{notegray}{CME 295 -- Lecture 5 Study Guide}}
+\fancyhead[R]{\small\textcolor{notegray}{Preference Tuning: RLHF, PPO, Best-of-N, DPO}}
+\fancyfoot[C]{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{defblue}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{defblue!80}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{defblue!60}}{}{0em}{}
+
+\hypersetup{colorlinks=true, linkcolor=defblue, urlcolor=defblue!80}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries\color{defblue} Comprehensive Study Guide}\\[6pt]
+{\Large CME 295: Transformers \& LLMs --- Lecture 5}\\[4pt]
+{\normalsize Preference Tuning: Data Collection, RLHF, PPO, Best-of-N, DPO}\\[4pt]
+{\small Stanford CME 295 by Afshine \& Shervine Amidi $\cdot$ For: Applied AI/ML Engineers}\\[2pt]
+\rule{\textwidth}{0.4pt}
+\end{center}
+
+\tableofcontents
+\newpage
+
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Topic Map}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=2em]
+  \item \textbf{Why Preference Tuning?}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item SFT produces a helpful model, but not one aligned to human preferences
+      \item Three reasons preference tuning is preferred over expanding SFT
+      \item Negative signal injection: what SFT cannot do
+    \end{enumerate}
+
+  \item \textbf{Preference Data Collection}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Pointwise vs.\ pairwise vs.\ listwise preference formats
+      \item Why pairwise is the standard
+      \item Recipe: prompt sourcing, response generation, labeling
+      \item Labeling methods: human rating, LLM-as-judge, rule-based proxies
+    \end{enumerate}
+
+  \item \textbf{RLHF: Reinforcement Learning from Human Feedback}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item RL formulation: agent, state, action, policy, reward, environment
+      \item Mapping to LLM setting
+      \item Step 1 --- Reward Modeling: Bradley-Terry formulation
+      \item Reward model loss derivation from MLE
+      \item Reward model architecture (decoder-only + classification head)
+      \item Step 2 --- RL Training: objective (maximize reward, minimize KL)
+      \item Reward hacking and why KL constraint is necessary
+      \item On-policy vs.\ off-policy training
+    \end{enumerate}
+
+  \item \textbf{PPO: Proximal Policy Optimization}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Advantage function: reward minus baseline
+      \item Value function: token-level reward estimator
+      \item GAE (Generalized Advantage Estimation)
+      \item PPO-Clip: ratio clipping, $\epsilon$, behavior for $A > 0$ and $A < 0$
+      \item PPO-KL Penalty: old vs.\ reference model distinction
+      \item Four models required: policy, value, reward model, base
+      \item PPO challenges: hyperparameters, instability, exploration
+    \end{enumerate}
+
+  \item \textbf{Best-of-N (BoN)}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Concept: generate $N$ completions, score all, return the best
+      \item Pros: avoids RL training complexity
+      \item Cons: expensive at inference time; latency scales with $N$
+    \end{enumerate}
+
+  \item \textbf{DPO: Direct Preference Optimization}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Motivation: supervised alternative to RLHF
+      \item Derivation: PPO objective $\to$ optimal policy $\to$ reward identification $\to$ Bradley-Terry $\to$ DPO loss
+      \item DPO loss formula; $\beta$ interpretation
+      \item ``Your LM is secretly a reward model''
+      \item RLHF vs.\ DPO: ease, models needed, performance
+    \end{enumerate}
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Deep-Dive Notes}
+%═══════════════════════════════════════════════════════════════════════════════
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Why Preference Tuning?}
+%───────────────────────────────────────────────────────────────────────────────
+
+After SFT, the model is a capable assistant, but may still produce outputs that are factually correct yet undesirable in tone, helpfulness, or safety. Preference tuning is the third training stage that aligns the model's outputs with what humans prefer.
+
+\begin{defbox}[Three Reasons Preference Tuning Supplements SFT]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Comparing is easier than generating:} Judging which of two poems is better is far easier than writing a great poem from scratch. This makes preference data cheaper to collect at scale than high-quality SFT demonstrations.
+  \item \textbf{SFT distribution sensitivity:} Adding misbehavior examples to the SFT set risks biasing the model's output distribution. Preference tuning handles negative examples without this risk.
+  \item \textbf{Negative signal injection:} SFT teaches what to generate, not what \emph{not} to generate. Preference tuning explicitly down-weights undesired outputs --- something SFT cannot do without rewriting bad outputs into good ones.
+\end{enumerate}
+\textbf{Caveat:} If the model misbehaves a lot, check the SFT data quality first. Preference tuning cannot fix fundamentally broken SFT.
+\end{defbox}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Preference Data Collection}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Data Formats}
+
+\begin{defbox}[Three Preference Data Formats]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Pointwise:} Assign a score (e.g., 0.1--1.0) to each (prompt, response) pair independently. Hard for humans --- no reference frame, scale is ambiguous.
+  \item \textbf{Pairwise:} Given two responses to the same prompt, indicate which is better (binary: $y_w > y_l$ or $y_w < y_l$). Easy for humans; the standard in practice.
+  \item \textbf{Listwise:} Rank $N$ responses from best to worst. More information per annotation but harder and more expensive to produce.
+\end{itemize}
+Industry standard: pairwise binary preference.
+\end{defbox}
+
+\subsubsection{Data Collection Recipe}
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Prompt sourcing:} Sample prompts from real user logs or from a curated reference distribution representing the target use cases.
+  \item \textbf{Response generation:} Generate two responses per prompt using the SFT model with temperature $> 0$ (to get diversity). Alternatively: use synthetic generation or manually rewrite bad responses into good ones.
+  \item \textbf{Labeling:} Annotators (human or LLM) compare the two responses and mark which is preferred.
+    \begin{itemize}[leftmargin=1.5em]
+      \item \textbf{Human rating:} Gold standard for RLHF (the ``HF'' in RLHF). Expensive but most reliable if guidelines are clear.
+      \item \textbf{LLM-as-judge:} Use a strong LLM to compare responses. Cheaper, but introduces model bias.
+      \item \textbf{Rule-based proxies:} BLEU, ROUGE, factuality checkers. Less common today.
+    \end{itemize}
+\end{enumerate}
+
+\begin{warnbox}[Annotation Guideline Quality]
+Human preference labels are only as good as the guidelines given to annotators. Vague guidelines produce noisy, inconsistent labels. Preference tuning propagates this noise into the model. Reward model quality is directly bounded by annotation quality.
+\end{warnbox}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{RLHF: Reinforcement Learning from Human Feedback}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{RL Formulation}
+
+\begin{defbox}[RL Basics]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Agent:} the entity taking actions.
+  \item \textbf{State} $s_t$: the current situation of the agent.
+  \item \textbf{Action} $a_t$: what the agent does at time $t$.
+  \item \textbf{Policy} $\pi_\theta(a_t | s_t)$: probability of action $a_t$ given state $s_t$. Parameterized by $\theta$.
+  \item \textbf{Reward} $r_t$: feedback signal after the action.
+  \item \textbf{Environment:} the world the agent acts in.
+\end{itemize}
+Goal: learn $\theta$ that maximizes expected cumulative reward.
+\end{defbox}
+
+\begin{defbox}[RL Formulation for LLMs]
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{RL Concept} & \textbf{LLM Equivalent} \\
+\midrule
+Agent & The LLM \\
+State $s_t$ & Input tokens processed so far \\
+Action $a_t$ & Next token to generate \\
+Environment & Vocabulary (set of all tokens) \\
+Policy $\pi_\theta(a_t | s_t)$ & Output probability distribution of the LLM \\
+Reward & Score from reward model (per full completion) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{defbox}
+
+\begin{notebox}[RLHF vs.\ RLAIF]
+\textbf{RLHF} (Reinforcement Learning from Human Feedback): preference labels come from humans. \textbf{RLAIF} (RL from AI Feedback): preference labels come from another LLM. RLAIF is cheaper and scales better but can inherit the labeling model's biases.
+\end{notebox}
+
+\subsubsection{Step 1: Reward Modeling}
+
+\begin{defbox}[Bradley-Terry Formulation (Bradley \& Terry, 1952)]
+The probability that response $y_i$ is preferred over response $y_j$, given prompt $x$:
+\[
+P(y_i \succ y_j \mid x) = \frac{e^{r(x, y_i)}}{e^{r(x, y_i)} + e^{r(x, y_j)}} = \sigma\!\big(r(x, y_i) - r(x, y_j)\big)
+\]
+where $r(x, y)$ is the \textbf{reward score} for (prompt, response) pair, and $\sigma$ is the sigmoid function.
+\end{defbox}
+
+\begin{mathbox}[Reward Model Loss: Derivation from MLE]
+Given a dataset of $n$ pairwise preference pairs $\{(x^{(k)}, y_w^{(k)}, y_l^{(k)})\}_{k=1}^n$ where $y_w$ is the winning response and $y_l$ is the losing response:
+
+\textbf{Step 1 --- Likelihood:} Assuming i.i.d.\ pairs, maximize:
+\[
+\prod_{k=1}^n P(y_w^{(k)} \succ y_l^{(k)} \mid x^{(k)}) = \prod_{k=1}^n \sigma\!\big(r(x, y_w) - r(x, y_l)\big)
+\]
+
+\textbf{Step 2 --- Log-likelihood} (log sum is more stable than product):
+\[
+\sum_{k=1}^n \log \sigma\!\big(r(x, y_w) - r(x, y_l)\big)
+\]
+
+\textbf{Step 3 --- Maximize by minimizing negative log-likelihood:}
+\[
+\boxed{\mathcal{L}_{\text{RM}} = -\mathbb{E}_{(x,y_w,y_l)}\!\Big[\log \sigma\!\big(r(x, y_w) - r(x, y_l)\big)\Big]}
+\]
+
+\textbf{Intuition:} This loss pushes $r(x, y_w) \to +\infty$ and $r(x, y_l) \to -\infty$, ensuring the sigmoid (probability of preferring $y_w$) approaches 1.
+\end{mathbox}
+
+\begin{notebox}[Reward Model Architecture]
+The reward model takes the full (prompt, response) as input and outputs a scalar score. Two options:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Decoder-only LLM + linear head:} Project the final token's hidden state to a single scalar. Most common today.
+  \item \textbf{Encoder-only (BERT-like) + CLS projection:} Bidirectional encoding, less common.
+\end{itemize}
+\textbf{Key:} The reward model is trained \emph{pairwise} but operates \emph{pointwise} at inference time --- it takes one (prompt, response) and returns one score.
+\end{notebox}
+
+\subsubsection{Step 2: RL Training (The RLHF Loop)}
+
+\begin{defbox}[RLHF RL Training Objective]
+Train the policy $\pi_\theta$ (the LLM) to maximize expected reward while not deviating too far from the reference model $\pi_{\text{ref}}$ (the SFT model):
+\[
+\max_{\pi_\theta} \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)}\!\Big[r(x, y) - \beta \cdot D_{\text{KL}}\!\big(\pi_\theta(\cdot|x) \,\|\, \pi_{\text{ref}}(\cdot|x)\big)\Big]
+\]
+\begin{itemize}[leftmargin=1.5em]
+  \item $r(x, y)$: reward model score for the generated response.
+  \item $D_{\text{KL}}$: KL divergence, measuring how much $\pi_\theta$ has drifted from $\pi_{\text{ref}}$.
+  \item $\beta$: trade-off hyperparameter ($\beta \approx 0.1$--$0.5$).
+  \item \textbf{Reward model is frozen}; only the LLM weights $\theta$ are updated.
+\end{itemize}
+\end{defbox}
+
+\begin{defbox}[KL Divergence]
+\[
+D_{\text{KL}}(P \| Q) = \sum_i P(i) \log \frac{P(i)}{Q(i)}
+\]
+Measures how different distribution $P$ is from $Q$. Always $\geq 0$ (proof via Jensen's inequality on the concave $\log$ function). Equals 0 if and only if $P = Q$.
+\end{defbox}
+
+\begin{warnbox}[Reward Hacking]
+If the policy is optimized too aggressively for the reward signal, it may find responses that score highly on the reward model but violate the true underlying goal. Example: if reward is correlated with response length, the policy learns to generate verbose padding. The KL constraint and the fact that the reward model is imperfect (trained on limited human data) make reward hacking a real concern. The KL penalty prevents this by keeping the policy close to the well-behaved SFT model.
+
+Three reasons for the KL constraint:
+\begin{enumerate}[leftmargin=1.5em]
+  \item Preserve the knowledge and capabilities of the base SFT model.
+  \item Prevent exploitation of reward model imperfections.
+  \item Maintain training stability.
+\end{enumerate}
+\end{warnbox}
+
+\begin{defbox}[On-Policy vs.\ Off-Policy Training]
+\textbf{On-policy:} At each training step, the model generates responses using its \emph{current} policy, then receives rewards for those responses and updates. RL-based preference tuning (PPO, GRPO) is on-policy.
+
+\textbf{Off-policy:} Training uses data generated by a \emph{different} policy (e.g., a previous model version or a fixed dataset). SFT is off-policy (uses fixed demonstration data). DPO is also effectively off-policy.
+
+On-policy training is more expensive (requires live generation) but avoids distribution shift between the training data and the current model.
+\end{defbox}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{PPO: Proximal Policy Optimization}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Advantage Function}
+
+\begin{defbox}[Advantage Function]
+Instead of optimizing raw reward $r$, PPO optimizes the \textbf{advantage} $A$:
+\[
+A \approx r - V(s)
+\]
+where $V(s)$ is the \textbf{value function} --- an estimate of the expected reward from state $s$ under the current policy. The advantage measures \emph{how much better the actual outcome was than expected}.
+
+Using advantages instead of raw rewards reduces variance and stabilizes training.
+\end{defbox}
+
+\begin{defbox}[Value Function]
+A token-level estimator that takes the prompt plus partial generation as input and predicts the expected final reward if generation continues under the current policy:
+\[
+V(x, y_{<t}) \approx \mathbb{E}_{\pi_\theta}\!\Big[r(x, y) \,\Big|\, x, y_{1:t-1}\Big]
+\]
+\textbf{Key properties:}
+\begin{itemize}[leftmargin=1.5em]
+  \item Token-level (not sequence-level like the reward model).
+  \item Trained jointly with the policy during the RL loop (as a regression head).
+  \item Label at each token = eventual full-sequence reward.
+\end{itemize}
+The specific method for computing advantages from the value function is \textbf{GAE (Generalized Advantage Estimation, Schulman et al., 2015)}.
+\end{defbox}
+
+\subsubsection{PPO-Clip}
+
+\begin{mathbox}[PPO-Clip Objective]
+Define the \textbf{probability ratio}:
+\[
+r_t(\theta) = \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{\text{old}}}(a_t | s_t)}
+\]
+where $\pi_{\theta_{\text{old}}}$ is the policy from the \emph{previous RL iteration} (not the SFT base model). The PPO-Clip objective to \emph{maximize} is:
+\[
+L^{\text{CLIP}}(\theta) = \mathbb{E}_t\!\Big[\min\!\big(r_t(\theta) A_t,\; \text{clip}(r_t(\theta), 1-\varepsilon, 1+\varepsilon) A_t\big)\Big]
+\]
+where $\varepsilon \approx 0.1$--$0.2$ is the clipping hyperparameter.
+\end{mathbox}
+
+\begin{notebox}[PPO-Clip Intuition: Case Analysis]
+\textbf{When $A_t > 0$} (the action was better than expected --- reinforce it):
+\begin{itemize}[leftmargin=1.5em]
+  \item We want to increase $r_t$ (make $a_t$ more likely).
+  \item But clip at $1+\varepsilon$ to prevent excessively large updates.
+  \item Shape: linearly increasing for $r_t \in [0, 1+\varepsilon]$, then flat.
+\end{itemize}
+
+\textbf{When $A_t < 0$} (the action was worse than expected --- discourage it):
+\begin{itemize}[leftmargin=1.5em]
+  \item We want to decrease $r_t$ (make $a_t$ less likely).
+  \item But clip at $1-\varepsilon$ to prevent excessively large updates in the other direction.
+  \item Shape: linearly decreasing for $r_t \in [1-\varepsilon, \infty]$, then flat.
+\end{itemize}
+The clipping prevents any single update from moving the policy too far from where it was.
+\end{notebox}
+
+\subsubsection{PPO-KL Penalty}
+
+\begin{mathbox}[PPO-KL Penalty Objective]
+\[
+L^{\text{KL}}(\theta) = \mathbb{E}_t\!\Big[r_t(\theta) A_t - \beta \cdot D_{\text{KL}}\!\big(\pi_{\theta_{\text{old}}} \,\|\, \pi_\theta\big)\Big]
+\]
+In modern LLM alignment, ``old'' is replaced by the reference model $\pi_{\text{ref}}$ (the SFT checkpoint):
+\[
+L^{\text{KL}}(\theta) = \mathbb{E}_t\!\Big[r_t(\theta) A_t - \beta \cdot D_{\text{KL}}\!\big(\pi_{\text{ref}} \,\|\, \pi_\theta\big)\Big]
+\]
+In practice, many implementations mix both clip and KL terms.
+\end{mathbox}
+
+\begin{notebox}[Terminology: Old vs.\ Reference]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{$\pi_{\theta_{\text{old}}}$} = policy from the previous RL iteration. Used in PPO-Clip to prevent large step-to-step updates. Stability concern.
+  \item \textbf{$\pi_{\text{ref}}$} = the SFT model, frozen throughout RL. Used in the KL penalty to prevent catastrophic forgetting and reward hacking.
+\end{itemize}
+These are two different models serving two different purposes.
+\end{notebox}
+
+\subsubsection{Four Models in PPO}
+
+\begin{defbox}[Models Required for PPO]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Policy ($\pi_\theta$):} The LLM being trained. Generates completions.
+  \item \textbf{Value model ($V_\phi$):} Trained jointly with the policy to estimate expected reward per token.
+  \item \textbf{Reward model (RM):} Frozen. Trained in Step 1. Scores (prompt, completion) pairs.
+  \item \textbf{Reference model ($\pi_{\text{ref}}$):} The SFT model, frozen. Used to compute KL penalty.
+\end{enumerate}
+For a 70B-parameter model: running four 70B-parameter models simultaneously requires enormous memory --- a major practical limitation.
+\end{defbox}
+
+\subsubsection{PPO Challenges}
+
+\begin{warnbox}[PPO Practical Challenges]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Two-stage process:} Must first train reward model, then do RL. If either has problems, re-run both.
+  \item \textbf{Many hyperparameters:} $\beta$ (KL weight), $\varepsilon$ (clip), GAE parameters $\lambda$ and $\gamma$, etc.
+  \item \textbf{Training instability:} On-policy updates can be unstable. Clipping and KL penalties help but don't eliminate instability.
+  \item \textbf{Monitoring difficulty:} Unlike SFT (where cross-entropy loss is meaningful), monitoring average reward is noisy and not a clean convergence signal.
+  \item \textbf{Exploration requirement:} The policy must generate diverse completions during training (using sufficient temperature) to learn from both good and bad outputs.
+  \item \textbf{Memory cost:} Four large models required simultaneously.
+\end{enumerate}
+\end{warnbox}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{Best-of-N (BoN)}
+%───────────────────────────────────────────────────────────────────────────────
+
+\begin{defbox}[Best-of-N (BoN)]
+An inference-time alternative to RL training. Given a prompt:
+\begin{enumerate}[leftmargin=1.5em]
+  \item Generate $N$ responses from the SFT model (using temperature $> 0$).
+  \item Score each response using the reward model.
+  \item Return the highest-scoring response to the user.
+\end{enumerate}
+No additional training of the LLM is required.
+\end{defbox}
+
+\begin{exbox}[BoN Example with $N=3$]
+Prompt: ``Suggest a new activity I could do with my teddy bear.''\\
+Response A: ``Watch a movie together.'' $\to$ Reward = +0.8 (best) (selected)\\
+Response B: ``Don't spend time with your teddy bear.'' $\to$ Reward = $-$2.0\\
+Response C: ``Take your teddy bear on a picnic.'' $\to$ Reward = +0.2
+\end{exbox}
+
+\begin{warnbox}[BoN Limitations]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Inference cost:} $N$ forward passes per query instead of 1. $N=4$ means 4$\times$ compute cost.
+  \item \textbf{Latency:} Even with parallelism, latency $\approx \max(\text{latency of }N\text{ completions})$, which is higher than a single completion (since the max of $N$ samples from a distribution shifts right).
+  \item \textbf{Model quality floor:} If the SFT model consistently generates bad outputs, no amount of $N$ helps.
+  \item \textbf{Scale irrelevance:} The absolute scale of reward model scores doesn't matter for BoN --- only the ranking matters. (Contrast with RL, where absolute values affect loss magnitude.)
+\end{itemize}
+\end{warnbox}
+
+%───────────────────────────────────────────────────────────────────────────────
+\subsection{DPO: Direct Preference Optimization}
+%───────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Motivation}
+
+\begin{defbox}[DPO Motivation (Rafailov et al., 2023)]
+DPO eliminates the reward modeling stage entirely. Instead of: (1) train a reward model, then (2) use RL to optimize the LLM --- DPO directly optimizes the LLM weights using a single supervised loss applied to preference pairs.
+
+\textbf{Title of the paper:} ``Direct Preference Optimization: Your Language Model is Secretly a Reward Model.'' This refers to the fact that the implicit reward in DPO is expressed entirely in terms of the policy itself.
+\end{defbox}
+
+\subsubsection{DPO Derivation}
+
+\begin{mathbox}[DPO Loss: 5-Step Derivation]
+
+\textbf{Step 1 --- Start from PPO objective:}
+\[
+\max_{\pi_\theta} \mathbb{E}_{y \sim \pi_\theta}\!\Big[r(x,y)\Big] - \beta D_{\text{KL}}\!\big(\pi_\theta \,\|\, \pi_{\text{ref}}\big)
+\]
+
+\textbf{Step 2 --- Derive the optimal policy:}
+Solving this optimization analytically (no approximation), the optimal policy is:
+\[
+\pi^*(y|x) = \frac{1}{Z(x)} \pi_{\text{ref}}(y|x) \exp\!\left(\frac{r(x,y)}{\beta}\right)
+\]
+where $Z(x) = \sum_y \pi_{\text{ref}}(y|x) \exp(r(x,y)/\beta)$ is the partition function.
+
+\textbf{Step 3 --- Rearrange to express reward in terms of policy:}
+\[
+r(x,y) = \beta \log \frac{\pi^*(y|x)}{\pi_{\text{ref}}(y|x)} + \beta \log Z(x)
+\]
+
+\textbf{Step 4 --- Plug into Bradley-Terry formulation:}
+\[
+P(y_w \succ y_l \mid x) = \sigma(r(x,y_w) - r(x,y_l))
+\]
+The $Z(x)$ terms cancel (same for $y_w$ and $y_l$):
+\[
+P(y_w \succ y_l \mid x) = \sigma\!\left(\beta \log \frac{\pi^*(y_w|x)}{\pi_{\text{ref}}(y_w|x)} - \beta \log \frac{\pi^*(y_l|x)}{\pi_{\text{ref}}(y_l|x)}\right)
+\]
+
+\textbf{Step 5 --- Maximize log-likelihood over preference data:}
+\[
+\boxed{\mathcal{L}_{\text{DPO}}(\theta) = -\mathbb{E}_{(x, y_w, y_l)}\!\left[\log \sigma\!\left(\beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} - \beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)}\right)\right]}
+\]
+\end{mathbox}
+
+\begin{notebox}[DPO Loss Interpretation]
+The DPO loss:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Increases} the likelihood of winning responses $y_w$ relative to the reference model.
+  \item \textbf{Decreases} the likelihood of losing responses $y_l$ relative to the reference model.
+  \item $\beta$ controls how strongly to deviate from the reference model. Higher $\beta$ = stays closer to $\pi_{\text{ref}}$; lower $\beta$ = larger updates toward preferences.
+  \item \textbf{No reward model required.} The implicit reward is $\hat{r}(x,y) = \beta \log \frac{\pi_\theta(y|x)}{\pi_{\text{ref}}(y|x)}$.
+  \item \textbf{Only two models needed:} $\pi_\theta$ (trained) and $\pi_{\text{ref}}$ (frozen SFT model). Compare to PPO's four.
+\end{itemize}
+\end{notebox}
+
+\subsubsection{RLHF vs.\ DPO Comparison}
+
+\begin{table}[h]
+\centering
+\caption{RLHF (PPO) vs.\ DPO Comparison}
+\begin{tabular}{@{}p{4cm}p{4cm}p{5cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{RLHF / PPO} & \textbf{DPO} \\
+\midrule
+Training stages & 2 (RM then RL) & 1 (direct supervision) \\
+Models in memory & 4 & 2 \\
+Reward model needed & Yes & No \\
+Training type & On-policy & Off-policy (supervised) \\
+Hyperparameters & Many ($\beta$, $\varepsilon$, GAE params, etc.) & Fewer ($\beta$ mainly) \\
+Stability & Harder to tune & More stable \\
+Distribution shift & Less (on-policy) & More (off-policy) \\
+Peak performance & Generally higher & Slightly lower \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{notebox}[Practical Guidance]
+\begin{itemize}[leftmargin=1.5em]
+  \item Use \textbf{DPO} when you want a quick, stable, well-understood implementation. Good for most applied use cases.
+  \item Use \textbf{PPO/RL} when you need maximum performance, have RL expertise, and can afford the compute and engineering overhead.
+  \item Performance difference is task-dependent. Xu et al., 2024 provides a comprehensive comparison.
+\end{itemize}
+\end{notebox}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Related Concepts You Should Also Know}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{GRPO (Group Relative Policy Optimization, DeepSeek, 2024):} An RL variant that eliminates the value function by computing advantages from the \emph{relative} rewards within a group of completions for the same prompt. Averages the group's rewards as the baseline. Reduces from 4 models (PPO) to 3. Particularly effective for reasoning tasks. Will be covered in Lecture 6.
+
+  \item \textbf{REINFORCE:} A simpler policy gradient algorithm that uses the raw reward as the advantage (no value function). High variance but minimal memory requirements. Monte Carlo return as baseline. Predecessor to PPO.
+
+  \item \textbf{InstructGPT (Ouyang et al., 2022):} The paper that introduced the RLHF framework for LLMs. GPT-3 was fine-tuned with SFT on human demonstrations, then RLHF with PPO on human preference labels. This became the template for ChatGPT, Claude, and others.
+
+  \item \textbf{Constitutional AI (Anthropic, 2022):} A variant of RLAIF where the AI critiques and revises its own outputs against a set of principles (a ``constitution''), generating synthetic preference data without human labeling.
+
+  \item \textbf{Implicit Reward in DPO:} The DPO implicit reward $\hat{r}(x,y) = \beta \log [\pi_\theta(y|x) / \pi_{\text{ref}}(y|x)]$ measures how much the trained policy favors response $y$ relative to the reference model. This is the ``secretly a reward model'' insight.
+
+  \item \textbf{RewardBench:} A benchmark for evaluating reward models across dimensions: chat, safety, reasoning, instruction-following. Analogous to MMLU for reward models.
+
+  \item \textbf{KL Divergence Non-Symmetry:} $D_{\text{KL}}(P \| Q) \neq D_{\text{KL}}(Q \| P)$. In PPO/DPO, $D_{\text{KL}}(\pi_{\text{ref}} \| \pi_\theta)$ and $D_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})$ have different behaviors. The direction matters for how the penalty penalizes out-of-distribution behavior.
+
+  \item \textbf{Reward Model Dimensions:} Reward models can be trained for specific dimensions: helpfulness, harmlessness, honesty, factuality, safety, tone/friendliness. Multiple specialized reward models can be combined during RL training.
+
+  \item \textbf{Iterative DPO / Online DPO:} A variant where the policy generates new completions at each training iteration, which are then scored by a reward model and used to form new preference pairs. Combines the distribution-match advantage of on-policy training with DPO's simplicity.
+
+  \item \textbf{IPO (Identity Preference Optimization):} A variant of DPO that regularizes more strongly to prevent overfitting to the preference data. Addresses cases where DPO can over-optimize.
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Build Projects}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{DPO Fine-Tuning Pipeline} \textit{(5--8 hours, very high signal)}\\
+  Using TRL (HuggingFace's Transformer Reinforcement Learning library), implement DPO fine-tuning on a public preference dataset (e.g., Anthropic's HH-RLHF, or UltraFeedback). Start from a QLoRA-fine-tuned base (you already built this in Lecture 4's project). Train with $\beta \in \{0.05, 0.1, 0.5\}$ and observe the effect on: (a) the implicit reward margin $\hat{r}(y_w) - \hat{r}(y_l)$ on a held-out validation set, (b) generation quality (human eval or GPT-4 judge), (c) KL divergence from the reference model. This directly extends your Finetune-Pipeline work with a state-of-the-art alignment technique.
+
+  \item \textbf{Reward Model from Scratch} \textit{(4--6 hours, high signal)}\\
+  Train a reward model using the Bradley-Terry loss on a small preference dataset. Start from a 7B base model, add a linear head on the final token's hidden state, and train with the pairwise preference loss. Evaluate on RewardBench. Visualize the score distribution for winning vs.\ losing responses to verify the training has converged correctly.
+
+  \item \textbf{Best-of-N vs.\ DPO Comparison} \textit{(3--4 hours, good signal)}\\
+  For a fixed set of prompts: (a) run BoN with $N \in \{1, 4, 16, 64\}$ using your reward model to pick the best response; (b) run DPO-fine-tuned model with a single generation. Compare quality (reward model score on held-out set) vs.\ inference compute (number of forward passes). Plot the Pareto frontier of quality vs.\ compute. This demonstrates the engineering trade-off between training cost and inference cost.
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Explain It Back}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{enumerate}[leftmargin=2em]
+  \item You are explaining RLHF to a product manager. Explain: (a) what a reward model is and what it's trained on, (b) why the RL training loop is necessary after you already have the reward model, (c) why the KL penalty prevents the model from becoming extremely sycophantic or unsafe, using the ``lecture applause'' metaphor from class.
+
+  \item Derive the DPO loss from the PPO objective. State clearly at each of the 5 steps what you are doing and why. Particular focus: why do the $Z(x)$ partition function terms cancel in Step 4?
+
+  \item A teammate proposes using BoN with $N=100$ as a cheap alternative to DPO training, arguing ``we don't need to train anything.'' Walk through both the latency argument (even with infinite parallel compute, why is latency higher?) and the cost argument at scale (1M queries/day $\times$ 100 generations each).
+
+  \item Explain the difference between the advantage function and the reward in PPO. Why is maximizing advantage more stable than maximizing raw reward? What role does the value function play?
+\end{enumerate}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Interview Practice Questions \& Answers}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\begin{notebox}[L1 --- What is reward hacking and why does the KL penalty prevent it?]
+\textbf{Answer:} Reward hacking occurs when the policy learns to exploit weaknesses in the reward model --- generating outputs that score highly on the metric without actually being good. The reward model is trained on limited human preference data and is imperfect; any scoring function can be gamed by an optimizer. The KL divergence penalty $\beta D_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})$ penalizes the policy for deviating too far from the SFT reference model. Since the SFT model's behavior is generally well-aligned (having been trained on high-quality demonstrations), staying close to it prevents the policy from finding adversarial outputs that exploit reward model imperfections. Higher $\beta$ = stronger constraint = less reward hacking risk but also less alignment improvement.
+\end{notebox}
+
+\begin{notebox}[L1 --- What is the difference between RLHF and RLAIF?]
+\textbf{Answer:} In RLHF (Reinforcement Learning from Human Feedback), the preference labels used to train the reward model come from human annotators comparing pairs of responses. In RLAIF (RL from AI Feedback), the labels come from another AI model (typically a stronger LLM acting as judge). RLAIF is cheaper and scales better since humans are expensive and slow. However, RLAIF can inherit biases from the judging model and may not reflect true human preferences. Constitutional AI (Anthropic) is a notable RLAIF approach.
+\end{notebox}
+
+\begin{notebox}[L2 --- Derive the reward model loss function from first principles.]
+\textbf{Answer:} We have pairwise preference data: for each prompt $x$ and pair $(y_w, y_l)$, $y_w$ is preferred. Using Bradley-Terry: $P(y_w \succ y_l) = \sigma(r(x,y_w) - r(x,y_l))$. To find the best reward function parameters $\theta_r$, we maximize the likelihood of observing the preference data:
+\[
+\max_{\theta_r} \prod_k \sigma(r_{\theta_r}(x^{(k)},y_w^{(k)}) - r_{\theta_r}(x^{(k)},y_l^{(k)}))
+\]
+Taking the log (to avoid numerical underflow and to convert product to sum), then negating (to convert maximization to minimization):
+\[
+\mathcal{L}_{\text{RM}} = -\mathbb{E}_{(x,y_w,y_l)}\Big[\log \sigma(r(x,y_w) - r(x,y_l))\Big]
+\]
+This is a binary cross-entropy loss where the positive class is the winning response and the model must assign it a higher reward than the losing response.
+\end{notebox}
+
+\begin{notebox}[L2 --- Explain the PPO-Clip objective. What is $r_t(\theta)$ and why clip it?]
+\textbf{Answer:} $r_t(\theta) = \pi_\theta(a_t|s_t) / \pi_{\theta_\text{old}}(a_t|s_t)$ is the ratio of the probability of action $a_t$ under the new policy vs.\ the previous RL iteration's policy (not the SFT model). When $r_t > 1$, the new policy is more likely to take that action; when $r_t < 1$, less likely. The PPO objective clips $r_t$ to the range $[1-\varepsilon, 1+\varepsilon]$, preventing any single update from moving the policy too far. This serves two purposes: (1) training stability, since large probability shifts can cause instability; (2) preventing policy collapse, where the model gets trapped in a degenerate local optimum by taking one too-large step.
+\end{notebox}
+
+\begin{notebox}[L3 --- Derive the DPO loss starting from the PPO objective. What is the key insight?]
+\textbf{Answer:} Start from the PPO objective: $\max_\pi \mathbb{E}[r(x,y)] - \beta D_{\text{KL}}(\pi \| \pi_{\text{ref}})$. Solving analytically gives the optimal policy $\pi^*(y|x) \propto \pi_{\text{ref}}(y|x) \exp(r(x,y)/\beta)$. Rearranging: $r(x,y) = \beta \log[\pi^*(y|x)/\pi_{\text{ref}}(y|x)] + \beta \log Z(x)$. Plugging into the Bradley-Terry probability $P(y_w \succ y_l) = \sigma(r(x,y_w) - r(x,y_l))$, the $Z(x)$ terms cancel (they appear in both $r(x,y_w)$ and $r(x,y_l)$). The key insight: the reward can be expressed purely as a function of the policy and the reference model, with no separate reward model needed. Maximizing the Bradley-Terry likelihood over preference pairs gives the DPO loss:
+$\mathcal{L}_{\text{DPO}} = -\mathbb{E}[\log \sigma(\beta \log \frac{\pi_\theta(y_w)}{\pi_{\text{ref}}(y_w)} - \beta \log \frac{\pi_\theta(y_l)}{\pi_{\text{ref}}(y_l)})]$.
+\end{notebox}
+
+\begin{notebox}[L2 --- What is the value function in PPO and why does it need to be trained?]
+\textbf{Answer:} The value function $V(x, y_{<t})$ estimates the expected future reward from a partial sequence under the current policy. It's used to compute the advantage $A \approx r - V$. Training is necessary because the value function must track the current policy --- as the policy changes during RL training, what counts as a ``good'' expected reward from any given partial state also changes. A stale value function would give inaccurate baselines, increasing variance and slowing training. The value function is typically implemented as a regression head on top of the LLM, sharing the backbone, and is trained with the policy simultaneously using the reward model's scores as labels.
+\end{notebox}
+
+\begin{notebox}[L1 --- Why does pairwise preference annotation produce a pointwise reward model?]
+\textbf{Answer:} During training, the reward model sees pairs $(y_w, y_l)$ and optimizes the pairwise Bradley-Terry loss that involves both scores $r(x,y_w)$ and $r(x,y_l)$. However, the loss gradient updates a single shared model that maps any (prompt, response) pair to a single scalar. The model learns to assign high scores to winning responses and low scores to losing responses --- a pointwise operation. At inference time, you simply pass one (prompt, response) pair and get one score. The pairwise structure is in the training signal, not in the model's architecture or inference behavior.
+\end{notebox}
+
+\newpage
+%═══════════════════════════════════════════════════════════════════════════════
+\section{Self-Assessment Test}
+%═══════════════════════════════════════════════════════════════════════════════
+
+\textbf{Scoring:} 16--20 = solid mastery; 12--15 = revisit weak spots; $<$12 = re-study.
+
+\subsection*{Multiple Choice (1 point each)}
+
+\textbf{Q1.} The Bradley-Terry formulation models:
+(a) The probability that response $y_i$ is correct\quad
+(b) The probability that $y_i$ is preferred over $y_j$ as $\sigma(r_i - r_j)$\quad
+(c) The KL divergence between two policy distributions\quad
+(d) The advantage of taking action $a_t$
+
+\textbf{Q2.} In the RL formulation for LLMs, what is the ``action''?\\
+(a) The full generated response\quad
+(b) The next token to generate\quad
+(c) The reward model score\quad
+(d) The prompt
+
+\textbf{Q3.} In DPO, how many models need to be in memory during training?\\
+(a) 1\quad (b) 2\quad (c) 3\quad (d) 4
+
+\textbf{Q4.} The KL divergence $D_{\text{KL}}(P \| Q)$ is:
+(a) Always negative\quad (b) Always positive or zero\quad
+(c) Symmetric ($= D_{\text{KL}}(Q \| P)$)\quad (d) Maximized when $P = Q$
+
+\textbf{Q5.} In PPO-Clip, $r_t(\theta)$ represents:\\
+(a) The reward from the reward model\quad
+(b) The ratio $\pi_\theta(a_t|s_t) / \pi_{\text{ref}}(a_t|s_t)$ (new over SFT model)\quad
+(c) The ratio $\pi_\theta(a_t|s_t) / \pi_{\theta_\text{old}}(a_t|s_t)$ (new over previous RL iteration)\quad
+(d) The advantage function
+
+\textbf{Q6.} Which of these is an advantage of Best-of-N over RL training?\\
+(a) Lower inference compute cost\quad
+(b) No RL training overhead; simpler implementation\quad
+(c) Better model quality\quad
+(d) No need for a reward model
+
+\textbf{Q7.} DPO is considered ``off-policy'' because:\\
+(a) It uses a frozen reward model\quad
+(b) The preference data was generated by the SFT model, not the current policy being trained\quad
+(c) It doesn't use any policy at all\quad
+(d) The KL divergence is computed against the old model
+
+\textbf{Q8.} The value function in PPO is trained to predict:\\
+(a) The probability of the next token\quad
+(b) The expected final reward from a partial sequence under the current policy\quad
+(c) The preference between two responses\quad
+(d) The KL divergence from the reference model
+
+\subsection*{Short Answer (1.5 points each)}
+
+\textbf{Q9.} Write the reward model loss function (derived from MLE on Bradley-Terry) and label every component.
+
+\textbf{Q10.} State the DPO loss and explain what $\beta$ controls.
+
+\textbf{Q11.} Explain reward hacking with a concrete example. How does the KL penalty prevent it?
+
+\textbf{Q12.} What are the three reasons preference tuning is used instead of simply adding misbehavior examples to the SFT data?
+
+\textbf{Q13.} In PPO, what is the difference between $\pi_{\theta_\text{old}}$ (old policy) and $\pi_{\text{ref}}$ (reference model)? What purpose does each serve?
+
+\textbf{Q14.} Why does the Best-of-N approach increase latency even with unlimited parallel compute?
+
+\subsection*{Scenario (2 points)}
+
+\textbf{Q15.} You are building the alignment pipeline for a customer service LLM. You have already completed SFT. Your team is deciding between PPO-based RLHF and DPO. Your constraints: 2 A100-80GB GPUs, no RL expertise on the team, 10K human-labeled preference pairs, and a 4-week timeline. You also need to quantify alignment quality. Describe: (a) which approach you choose and why, (b) the full DPO or RLHF pipeline you would run, (c) how you would collect and evaluate the preference data, (d) what metric you use to monitor training.
+
+\newpage
+\subsection*{Answer Key}
+
+\textbf{Q1.} (b) Bradley-Terry models $P(y_i \succ y_j) = \sigma(r_i - r_j)$.
+
+\textbf{Q2.} (b) The next token to generate. The full response emerges from many such actions.
+
+\textbf{Q3.} (b) 2 models: the trained policy $\pi_\theta$ and the frozen reference $\pi_{\text{ref}}$.
+
+\textbf{Q4.} (b) $D_{\text{KL}}(P\|Q) \geq 0$ always (Jensen's inequality); equals 0 iff $P = Q$. It is not symmetric.
+
+\textbf{Q5.} (c) $r_t(\theta) = \pi_\theta / \pi_{\theta_\text{old}}$, the ratio between the current and the \emph{previous RL iteration's} policy, not the SFT model.
+
+\textbf{Q6.} (b) BoN skips RL training entirely, requiring no RL engineering. However, it's more expensive at inference time.
+
+\textbf{Q7.} (b) DPO trains on preference data generated by the SFT model, which is a different (older) policy from the one being updated. This is the definition of off-policy.
+
+\textbf{Q8.} (b) The value function estimates expected final reward from any partial sequence state, used to compute the advantage.
+
+\textbf{Q9.} $\mathcal{L}_{\text{RM}} = -\mathbb{E}_{(x,y_w,y_l)}\left[\log \sigma\!\big(\underbrace{r(x,y_w)}_{\text{winning score}} - \underbrace{r(x,y_l)}_{\text{losing score}}\big)\right]$. The $\sigma$ is the sigmoid; $r(x,y)$ is the scalar output of the reward model for (prompt $x$, response $y$); $y_w$ and $y_l$ are the winning and losing responses in the pairwise preference pair.
+
+\textbf{Q10.} $\mathcal{L}_{\text{DPO}} = -\mathbb{E}\!\left[\log \sigma\!\left(\beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} - \beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)}\right)\right]$. $\beta$ is the regularization strength: higher $\beta$ forces the trained policy to stay closer to the reference model (more conservative alignment); lower $\beta$ allows larger updates toward the preferences.
+
+\textbf{Q11.} Example: a reward model trained to reward helpfulness correlates helpfulness with response length. The policy then learns to pad responses with verbose filler to increase reward, without becoming more helpful. The KL penalty $\beta D_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})$ prevents this by penalizing large deviations from the SFT model, which doesn't engage in padding.
+
+\textbf{Q12.} (1) Comparison is easier than generation: rating which of two responses is better is cheaper than writing the ideal response from scratch. (2) SFT distribution sensitivity: adding more examples risks biasing the training distribution in unintended ways. (3) Negative signal: SFT can only teach the model what to generate, not what to avoid; preference tuning explicitly down-weights bad outputs.
+
+\textbf{Q13.} $\pi_{\theta_\text{old}}$ = the policy from the previous RL update iteration, used in PPO-Clip to prevent excessively large step-to-step updates (stability). $\pi_{\text{ref}}$ = the SFT checkpoint, frozen throughout all of RL training, used in the KL penalty to prevent catastrophic forgetting and reward hacking.
+
+\textbf{Q14.} Even with all $N$ responses generated in parallel, you must wait for the \emph{slowest} (longest) completion before the reward model can score them all and return the best. Response lengths follow a distribution, and the expected maximum of $N$ samples from a distribution is higher than the expected value of a single sample. This right-shift in latency grows with $N$.
+
+\textbf{Q15.} \textbf{Choose DPO.} Reasons: (a) no RL expertise needed, simpler implementation, only 2 models in memory (fits on 2$\times$A100), 4-week timeline is achievable; PPO would require reward model training + RL tuning under time pressure. Pipeline: start from SFT checkpoint on A100\#1 (reference model, frozen) + a copy on A100\#2 (trainable policy). Load preference data: 10K pairs, split 80/20 train/val. Format as $(x, y_w, y_l)$ triples. Train with TRL's DPOTrainer, $\beta=0.1$, QLoRA (rank=16) to fit in memory. Preference data collection: 10K pairs should be human-labeled with clear rubric (helpfulness, appropriateness, tone). For customer service, dimensions: accurate information, polite tone, appropriate escalation. Evaluation: (a) held-out preference prediction accuracy (does DPO model assign higher implicit reward $\hat{r}(y_w) > \hat{r}(y_l)$ on the val set?), (b) GPT-4-as-judge on 200 held-out prompts comparing SFT vs.\ DPO outputs, (c) human review of 50 flagged customer service scenarios.
+
+\vspace{1em}
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}\\[6pt]
+{\small\textit{End of Study Guide --- Lecture 5}}\\[4pt]
+{\small Source: Stanford CME 295, Fall 2025. Afshine \& Shervine Amidi.}
+\end{center}
+
+\end{document}
