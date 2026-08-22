@@ -1,0 +1,685 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{array}
+
+\definecolor{defblue}{RGB}{0, 73, 144}
+\definecolor{exgreen}{RGB}{0, 100, 0}
+\definecolor{warnred}{RGB}{180, 30, 30}
+\definecolor{notegray}{RGB}{80, 80, 80}
+\definecolor{lightbg}{RGB}{245, 247, 250}
+\definecolor{purp}{RGB}{100, 0, 140}
+\definecolor{teal}{RGB}{0, 110, 110}
+\definecolor{orange}{RGB}{180, 80, 0}
+
+\tcbuselibrary{skins, breakable}
+\newtcolorbox{defbox}[1][]{colback=blue!3, colframe=defblue, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{exbox}[1][]{colback=green!3, colframe=exgreen, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{warnbox}[1][]{colback=red!3, colframe=warnred, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{notebox}[1][]{colback=lightbg, colframe=notegray, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{mathbox}[1][]{colback=purp!3, colframe=purp, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+\newtcolorbox{orangebox}[1][]{colback=orange!5, colframe=orange, fonttitle=\bfseries,
+  title={#1}, breakable, left=4pt, right=4pt, top=4pt, bottom=4pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{notegray}{CME 295 -- Lecture 6 Study Guide}}
+\fancyhead[R]{\small\textcolor{notegray}{LLM Reasoning: GRPO, DeepSeek R1, Distillation}}
+\fancyfoot[C]{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{defblue}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{defblue!80}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{defblue!60}}{}{0em}{}
+
+\hypersetup{colorlinks=true, linkcolor=defblue, urlcolor=defblue!80}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries\color{defblue} Comprehensive Study Guide}\\[6pt]
+{\Large CME 295: Transformers \& LLMs --- Lecture 6}\\[4pt]
+{\normalsize LLM Reasoning: Scaling with RL, GRPO, DeepSeek R1, Distillation}\\[4pt]
+{\small Stanford CME 295 by Afshine \& Shervine Amidi $\cdot$ For: Applied AI/ML Engineers}\\[2pt]
+\rule{\textwidth}{0.4pt}
+\end{center}
+
+\tableofcontents
+\newpage
+
+%=============================================================================
+\section{Topic Map}
+%=============================================================================
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=2em]
+  \item \textbf{Vanilla LLM Limitations and Reasoning Overview}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Four weaknesses: limited reasoning, static knowledge, no actions, hard to evaluate
+      \item Definition of reasoning; reasoning vs.\ knowledge questions
+      \item Core idea: Chain-of-Thought at scale
+      \item Two intuitions for why more tokens = more reasoning
+      \item Reasoning model timeline (o1, DeepSeek R1, Gemini Flash Thinking, etc.)
+    \end{enumerate}
+
+  \item \textbf{Reasoning Benchmarks and Metrics}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Coding benchmarks: HumanEval, CodeForces, SWE-bench; test-case verification
+      \item Math benchmarks: AIME, GSM8K; answer parsing and ground-truth comparison
+      \item Pass@k metric: definition, derivation, unbiased estimator
+      \item Pass@1 as a special case
+      \item Temperature and its role in pass@k
+      \item Cons@k (Consensus@k) and its relation to self-consistency
+    \end{enumerate}
+
+  \item \textbf{Scaling Reasoning with RL (Test-Time Scaling)}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Why RL over SFT for reasoning
+      \item Reward 1: formatting reward (think token delimiters)
+      \item Reward 2: accuracy reward (verifiable, deterministic)
+      \item Compute budget and test-time scaling
+      \item Controlling thinking: dynamic budget, context awareness, budget forcing
+      \item Continuous thoughts / latent reasoning
+    \end{enumerate}
+
+  \item \textbf{GRPO: Group Relative Policy Optimization}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item GRPO vs.\ PPO: shared structure (ratio, clip), key differences
+      \item Advantage estimation: group-relative vs.\ value-function-based
+      \item Models required: GRPO (3: policy, reward, reference) vs.\ PPO (4: + value)
+      \item GRPO loss formula; KL placement difference
+      \item ``Increasing output length'' bias: the $1/|o_i|$ normalization problem
+      \item Remedies: DAPO, Dr.GRPO
+      \item Other adjustments: difficulty bias, diversity encouragement, asymmetric epsilon
+    \end{enumerate}
+
+  \item \textbf{DeepSeek R1-Zero and R1 Training Pipelines}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item R1-Zero: base model $\to$ GRPO (verifiable rewards only)
+      \item R1-Zero challenges: language mixing, formatting issues
+      \item R1 full pipeline: 5-stage recipe
+      \item Cold start data, rejection sampling, language consistency reward
+      \item R1 results vs.\ closed-source reasoning models
+    \end{enumerate}
+
+  \item \textbf{Distillation of Reasoning Capabilities}
+    \begin{enumerate}[label=\arabic{enumi}.\arabic*]
+      \item Lecture 2 distillation vs.\ reasoning distillation
+      \item Offline generation of reasoning traces from teacher (R1)
+      \item SFT on traces for smaller student model (R1-Distill)
+      \item Why distillation $>$ RL from scratch at small model sizes
+    \end{enumerate}
+\end{enumerate}
+
+\newpage
+%=============================================================================
+\section{Deep-Dive Notes}
+%=============================================================================
+
+%-----------------------------------------------------------------------------
+\subsection{Vanilla LLM Limitations and the Reasoning Paradigm}
+%-----------------------------------------------------------------------------
+
+\begin{defbox}[Vanilla LLM Strengths and Weaknesses]
+\textbf{Strengths:}
+\begin{itemize}[leftmargin=1.5em]
+  \item Excellent at imitation, idea generation, writing essays, poems.
+  \item Remarkable at code generation and debugging.
+\end{itemize}
+\textbf{Weaknesses (the four covered in this course):}
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Limited reasoning:} Multi-step mathematical or logical problems rarely appear verbatim in training data; next-token prediction doesn't force systematic problem decomposition.
+  \item \textbf{Static knowledge:} Pre-training data has a cutoff date. Events after the cutoff are unknown from weights alone.
+  \item \textbf{Cannot perform actions:} Models only generate text; they cannot browse the web, execute code, or call APIs (covered in Lecture 7--8).
+  \item \textbf{Hard to evaluate:} Free-form text output doesn't fit classic NLP metrics like BLEU/ROUGE.
+\end{enumerate}
+\end{defbox}
+
+\begin{defbox}[Definition: Reasoning]
+The ability to solve a problem through a \textbf{multi-step reasoning process}. Reasoning problems require decomposing a question into tractable sub-problems and chaining their solutions. Contrast with knowledge retrieval:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Knowledge question} & \textbf{Reasoning question} \\
+\midrule
+``What is CME 295?'' & ``A bear was born in 2020. How old is it now?'' \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{defbox}
+
+\begin{defbox}[Core Idea: Chain-of-Thought at Scale]
+Reasoning models extend Chain-of-Thought (introduced as a prompting technique in Lecture 3) from a prompt-level trick to a \textbf{training objective}. The model learns --- through RL on verifiable rewards --- to generate a reasoning chain before the final answer:
+
+\[
+\text{Output} = \underbrace{\langle\texttt{think}\rangle \ldots \langle\texttt{/think}\rangle}_{\text{reasoning chain (hidden/summarized for users)}} + \underbrace{\text{answer}}_{\text{shown to user}}
+\]
+\end{defbox}
+
+\begin{notebox}[Two Intuitions for Why More Tokens = Better Reasoning]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Decomposition:} Hard problems rarely appear in training data. By breaking a hard problem into tractable sub-problems, the model can apply patterns it \emph{did} see during pre-training to each sub-problem.
+  \item \textbf{More compute:} Each generated token requires a full Transformer forward pass. Generating more reasoning tokens = more computation applied to the problem = effectively scaling inference-time compute.
+\end{enumerate}
+This is called \textbf{test-time scaling}: improving performance by allocating more compute at inference time.
+\end{notebox}
+
+\begin{notebox}[Reasoning Model Timeline (2024--2025)]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Sep 2024:} OpenAI o1-preview --- first public reasoning model.
+  \item \textbf{Dec 2024:} Google Gemini 2.0 Flash Thinking.
+  \item \textbf{Jan 2025:} DeepSeek R1 --- open paper matching o1 performance; sparked massive community interest.
+  \item \textbf{Feb 2025:} Claude 3.7 Sonnet (Anthropic); Grok 3 Beta (xAI).
+  \item \textbf{Jun 2025:} Magistral (Mistral).
+\end{itemize}
+Key signal: when the UI says ``thinking...'' and shows a thought summary, you're using a reasoning model. You are charged for reasoning tokens (invisible to you but present in the generation).
+\end{notebox}
+
+%-----------------------------------------------------------------------------
+\subsection{Reasoning Benchmarks and Metrics}
+%-----------------------------------------------------------------------------
+
+\subsubsection{Benchmark Types}
+
+\begin{defbox}[Coding Benchmarks]
+Given a problem statement, generate code that passes all $t$ test cases. Correctness is fully automated and deterministic.
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{HumanEval:} 164 human-written Python problems.
+  \item \textbf{CodeForces:} Competitive programming problems of varying difficulty.
+  \item \textbf{SWE-bench:} Real GitHub issues requiring code fixes.
+\end{itemize}
+\end{defbox}
+
+\begin{defbox}[Math Benchmarks]
+Given a math problem, generate reasoning and a final answer. Correctness is verified by comparing the parsed answer to ground truth.
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{AIME:} American Invitational Mathematics Examination (olympiad-level).
+  \item \textbf{GSM8K:} 8,500 grade-school math word problems (easier; used to track progress).
+\end{itemize}
+Answer parsing: prompt the model to wrap its final answer in a parseable format (e.g., \texttt{\\boxed\{5\}}).
+\end{defbox}
+
+\subsubsection{Pass@k: Full Derivation}
+
+\begin{defbox}[Pass@k: Definition]
+$\text{pass@}k$ = the probability that at least one of $k$ randomly sampled attempts solves the problem correctly.
+\end{defbox}
+
+\begin{mathbox}[Pass@k Derivation (Sampling Without Replacement)]
+Generate $n$ total attempts, of which $c$ succeed and $n-c$ fail. Select $k$ of these $n$ attempts uniformly at random. Estimate $\text{pass@}k$:
+
+\textbf{Step 1 --- Complement:}
+\[
+\text{pass@}k = 1 - P(\text{all } k \text{ selected attempts fail})
+\]
+
+\textbf{Step 2 --- Sampling without replacement probability:}
+\[
+P(\text{all } k \text{ fail}) = \frac{n-c}{n} \cdot \frac{n-c-1}{n-1} \cdots \frac{n-c-k+1}{n-k+1}
+\]
+This is the product of probabilities that each of the $k$ draws is a failure.
+
+\textbf{Step 3 --- Express with combinatorics:}
+\[
+P(\text{all } k \text{ fail}) = \frac{\binom{n-c}{k}}{\binom{n}{k}}
+\]
+since $\prod_{i=0}^{k-1} \frac{n-c-i}{n-i} = \frac{(n-c)!/(n-c-k)!}{n!/(n-k)!} = \frac{\binom{n-c}{k}}{\binom{n}{k}}$.
+
+\textbf{Final formula:}
+\[
+\boxed{\widehat{\text{pass@}k} = 1 - \frac{\binom{n-c}{k}}{\binom{n}{k}}}
+\]
+
+\textbf{Special case} $k=1$:
+$\text{pass@}1 = 1 - (n-c)/n = c/n$ (fraction of correct attempts). This is just accuracy.
+\end{mathbox}
+
+\begin{notebox}[Why Use This Formula Instead of Directly Measuring?]
+Directly counting pass rates from exactly $k$ samples is high-variance (by chance, one run might get 3/5 correct, another 1/5). Generating $n > k$ samples and using this unbiased estimator reduces variance. The formula gives an unbiased estimate of the true probability by marginalizing over all possible $k$-subsets of the $n$ samples.
+\end{notebox}
+
+\begin{notebox}[Temperature and Pass@k]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{$T = 0$ (greedy):} All $n$ attempts are identical. $\text{pass@}k$ doesn't increase with $k$. No benefit from multiple samples.
+  \item \textbf{Low $T$ (e.g., 0.2--0.4):} High-quality but low-diversity samples. $\text{pass@}k$ increases slowly with $k$.
+  \item \textbf{Medium $T$ (e.g., 0.8):} Good balance of quality and diversity. $\text{pass@}k$ increases meaningfully with $k$.
+  \item \textbf{High $T$ (e.g., 1.2):} High diversity but lower individual quality. $\text{pass@}k$ may plateau at a lower value.
+\end{itemize}
+Reported results in papers always specify the temperature used.
+\end{notebox}
+
+\begin{defbox}[Cons@k (Consensus at k)]
+The majority-vote answer among $k$ generations. Related to self-consistency (Lecture 3): generate $k$ responses, parse the final answer from each, return the most common answer.
+\end{defbox}
+
+%-----------------------------------------------------------------------------
+\subsection{Scaling Reasoning with RL (Test-Time Scaling)}
+%-----------------------------------------------------------------------------
+
+\subsubsection{Why RL Over SFT for Reasoning?}
+
+\begin{defbox}[Three Arguments for RL Over SFT in Reasoning]
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{No SFT data readily available:} Writing long, correct reasoning chains from scratch is extremely difficult and expensive. Human annotators make errors, especially in complex math/code.
+  \item \textbf{Human reasoning may not be optimal for models:} The way models reason internally may differ from how humans write explanations. Restricting to human-written chains could limit the model's discovered reasoning strategies.
+  \item \textbf{Verifiable rewards exist naturally:} For coding (test case pass/fail) and math (exact answer match), correctness is automatically and deterministically verifiable --- no learned reward model needed.
+\end{enumerate}
+\end{defbox}
+
+\subsubsection{Two Reward Signals for Reasoning RL}
+
+\begin{defbox}[Reward 1: Formatting Reward]
+Check that the model's output follows the required template --- specifically, that reasoning is enclosed in \texttt{<think>...</think>} tags and the answer follows in \texttt{<answer>...</answer>} tags. Binary: present or not.
+\end{defbox}
+
+\begin{defbox}[Reward 2: Accuracy Reward (Verifiable)]
+For \textbf{coding:} does the generated code pass all test cases?\\
+For \textbf{math:} does the parsed answer match the ground truth?
+
+These rewards are \textbf{deterministic and automatic} --- no reward model required. This is a major practical advantage over preference-tuning RLHF where the reward model must itself be trained.
+
+Total reward = formatting reward + accuracy reward.
+\end{defbox}
+
+\subsubsection{Controlling Thinking at Inference Time}
+
+\begin{defbox}[Test-Time Scaling: Controlling Compute Budget]
+Not all prompts require the same depth of thinking. Methods to control thinking duration:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Dynamic budget:} Use a lightweight classifier to estimate problem difficulty and allocate different token budgets accordingly.
+  \item \textbf{Context awareness:} Force the model to be aware of its remaining context window; stop thinking when approaching the limit.
+  \item \textbf{Budget forcing (s1 paper):} Insert special tokens mid-reasoning to force the model to continue (e.g., ``wait, let me reconsider...'') or stop (e.g., ``my final answer is...'').
+  \item \textbf{Continuous thoughts:} Instead of reasoning in text tokens, have the model reason in continuous hidden-state representations (latent CoT). More compact and possibly richer than text.
+\end{itemize}
+\end{defbox}
+
+%-----------------------------------------------------------------------------
+\subsection{GRPO: Group Relative Policy Optimization}
+%-----------------------------------------------------------------------------
+
+\begin{defbox}[GRPO (Shao et al., 2024 --- DeepSeekMath)]
+An RL algorithm for LLMs that replaces PPO's value-function-based advantage estimation with a group-relative advantage:
+\[
+\hat{A}_i = \frac{r_i - \text{mean}(r_1, \ldots, r_G)}{\text{std}(r_1, \ldots, r_G)}
+\]
+where $r_1, \ldots, r_G$ are rewards for $G$ completions sampled from the \emph{same prompt}. The advantage of completion $i$ is how much better it is than the group average, in units of standard deviation.
+\end{defbox}
+
+\subsubsection{GRPO vs.\ PPO: Side-by-Side}
+
+\begin{table}[h]
+\centering
+\caption{GRPO vs.\ PPO Comparison}
+\begin{tabular}{@{}p{4cm}p{4cm}p{5cm}@{}}
+\toprule
+\textbf{Dimension} & \textbf{GRPO} & \textbf{PPO} \\
+\midrule
+Advantage estimation & Group-relative: $\frac{r_i - \mu_G}{\sigma_G}$ & GAE: reward + value function \\
+Value function & Not needed & Trained jointly with policy \\
+Models needed & 3 (policy, reward, reference) & 4 (+ value model) \\
+KL divergence & Explicit in loss formula & Inside advantage (per-token reward) \\
+Policy ratio & $\pi_\theta / \pi_{\theta_\text{old}}$ & $\pi_\theta / \pi_{\theta_\text{old}}$ \\
+Clipping & Yes ($\varepsilon$) & Yes ($\varepsilon$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{mathbox}[GRPO Loss Formula]
+\[
+J_{\text{GRPO}}(\theta) = \mathbb{E}_{q, \{o_i\}}\!\left[\frac{1}{G}\sum_{i=1}^G \frac{1}{|o_i|}\sum_{t=1}^{|o_i|} \min\!\left(r_t^{(i)}(\theta)\hat{A}_i,\; \text{clip}(r_t^{(i)}(\theta), 1\pm\varepsilon)\hat{A}_i\right) - \beta D_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})\right]
+\]
+where $r_t^{(i)}(\theta) = \pi_\theta(o_t^{(i)}|q, o_{<t}^{(i)}) / \pi_{\theta_\text{old}}(o_t^{(i)}|q, o_{<t}^{(i)})$ is the token-level policy ratio, $|o_i|$ is the length of completion $i$, and $\hat{A}_i$ is the group-relative advantage.
+
+\textbf{Key structural note:} The outer sum is over completions $i \in \{1,\ldots,G\}$; the inner sum is over token positions $t \in \{1,\ldots,|o_i|\}$. The $1/|o_i|$ normalizes by completion length. The KL term is explicit in the GRPO loss (outside the summations), whereas in PPO it is embedded within the per-token rewards.
+\end{mathbox}
+
+\subsubsection{The Increasing Output Length Problem}
+
+\begin{warnbox}[The $1/|o_i|$ Bias: A Bad Incentive]
+The normalization by length $1/|o_i|$ in the GRPO loss creates an unintended bias. Consider token $t$ in completion $i$:
+
+\textbf{Weight of token $t$'s contribution to the objective:}
+\[
+w_t = \frac{1}{|o_i|} \times (\text{token-specific objective term})
+\]
+\begin{itemize}[leftmargin=1.5em]
+  \item For a \textbf{short} completion: $1/|o_i|$ is \emph{large} $\Rightarrow$ each token has higher weight.
+  \item For a \textbf{long} completion: $1/|o_i|$ is \emph{small} $\Rightarrow$ each token has lower weight.
+\end{itemize}
+
+\textbf{The problem:} When advantage $\hat{A}_i < 0$ (bad completion), the optimizer wants to \emph{decrease} the probability of the tokens in that completion. The gradient to do so is:
+\begin{itemize}[leftmargin=1.5em]
+  \item Stronger for tokens in \textbf{short bad} completions (larger weight).
+  \item Weaker for tokens in \textbf{long bad} completions (smaller weight).
+\end{itemize}
+This means: \textbf{a short bad completion is penalized more than a long bad completion}. The policy learns to prefer longer outputs even when wrong, because longer bad completions receive weaker penalty signals. This causes the empirically observed ``output length keeps growing'' phenomenon during RL training.
+\end{warnbox}
+
+\begin{notebox}[Remedies: DAPO and Dr.GRPO (2025)]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{DAPO (Yu et al., 2025):} Replace $1/|o_i|$ with a common normalization factor across all tokens in all completions: $\sum_{i,t} 1$ (total token count). This equalizes the per-token contribution regardless of completion length.
+  \item \textbf{Dr.GRPO (Liu et al., 2025):} Remove the $1/|o_i|$ normalization factor entirely (replace with 1). Also: filter out examples where all completions in the group are correct or all are wrong (zero-variance groups).
+\end{itemize}
+\textbf{Empirical result:} With these fixes, incorrect completions have shorter average length (no more length inflation), while correct completions maintain similar length. Performance improves.
+\end{notebox}
+
+\begin{notebox}[Other GRPO Adjustments]
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Difficulty bias from std:} If a problem is very hard (most completions fail), the standard deviation of rewards is small (near-zero). This makes the normalized advantages very large, producing unstable gradients. Solution: add a small constant to the denominator or filter out degenerate groups.
+  \item \textbf{Diversity encouragement (DAPO):} Use asymmetric clipping: a larger upper $\varepsilon$ for increasing token probabilities and a smaller lower $\varepsilon$ for decreasing them. Encourages the policy to explore new tokens without catastrophically forgetting old ones.
+\end{itemize}
+\end{notebox}
+
+%-----------------------------------------------------------------------------
+\subsection{DeepSeek R1-Zero and R1 Training Pipelines}
+%-----------------------------------------------------------------------------
+
+\subsubsection{DeepSeek R1-Zero (Proof of Concept)}
+
+\begin{orangebox}[R1-Zero Recipe (2 stages)]
+\textbf{Stage 1 --- Pre-training:} V3-Base. Standard next-token prediction pre-training. Architecture: MoE with $\sim$671B total parameters, $\sim$37B active per token (using MLA from DeepSeek-V2).
+
+\textbf{Stage 2 --- GRPO with verifiable rewards only (no SFT):}
+\begin{itemize}[leftmargin=1.5em]
+  \item Reward = formatting reward + accuracy reward.
+  \item Template: instructs model to wrap reasoning in \texttt{<think>...</think>} and answer in \texttt{<answer>...</answer>}.
+  \item Result: reasoning abilities emerge purely from RL, without any supervised reasoning demonstrations.
+\end{itemize}
+
+\textbf{Outcome:} AIME performance improves substantially over training steps. \\
+\textbf{Challenges:} Reasoning chains sometimes mix languages (e.g., Chinese and English in the same chain); formatting and readability issues.
+\end{orangebox}
+
+\subsubsection{DeepSeek R1 (Full Production Pipeline)}
+
+\begin{orangebox}[R1 Full Recipe (5 stages)]
+Starting from V3-Base:
+
+\textbf{Stage 1 --- Pre-training:} V3-Base (same as R1-Zero).
+
+\textbf{Stage 2 --- Small-scale cold start SFT:}
+\begin{itemize}[leftmargin=1.5em]
+  \item Data: long CoTs generated by R1-Zero, then rewritten by humans to fix language mixing, formatting, and readability issues.
+  \item Scale: small ($\sim$ thousands of examples). Provides a clean starting point before the full RL stage.
+\end{itemize}
+
+\textbf{Stage 3 --- GRPO with reasoning data:}
+\begin{itemize}[leftmargin=1.5em]
+  \item Same RL process as R1-Zero but starting from the cold-start SFT checkpoint.
+  \item Reward = formatting + accuracy + \textbf{language consistency} (ratio of target-language tokens in the reasoning chain --- penalizes language mixing).
+\end{itemize}
+
+\textbf{Stage 4 --- Large-scale SFT with mixed data:}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\sim$600K reasoning pairs (math, coding, logic): generated by the model-so-far via \textbf{rejection sampling} (generate many responses, keep only those verified as correct by rules + V3-judge).
+  \item $\sim$200K non-reasoning pairs: reused from V3's SFT data (writing, Q\&A, general assistant tasks).
+  \item Ratio approximately 3:1 (reasoning:non-reasoning).
+\end{itemize}
+
+\textbf{Stage 5 --- GRPO with mixed reasoning and non-reasoning data: R1}
+\begin{itemize}[leftmargin=1.5em]
+  \item Reasoning data: reward = formatting + accuracy.
+  \item Non-reasoning data: reward = helpfulness + harmlessness (similar to standard RLHF).
+  \item Harmlessness reward applied to the full output including the thinking chain.
+\end{itemize}
+\end{orangebox}
+
+\begin{defbox}[Rejection Sampling (for SFT data generation)]
+A technique for generating high-quality training data: have the model (or a strong LLM) produce many candidate responses, then use automated verification (test cases, answer comparison) and/or an LLM judge to keep only the correct/high-quality ones. The resulting dataset is used for SFT training. More efficient than human annotation at scale.
+\end{defbox}
+
+%-----------------------------------------------------------------------------
+\subsection{Distillation of Reasoning Capabilities}
+%-----------------------------------------------------------------------------
+
+\begin{defbox}[Two Flavors of Distillation]
+\begin{center}
+\begin{tabular}{@{}p{5cm}p{7cm}@{}}
+\toprule
+\textbf{Lecture 2 (KD-style) Distillation} & \textbf{Reasoning Distillation (R1-Distill)} \\
+\midrule
+Goal: match the full token probability distribution of the teacher at each step & Goal: predict the full token \emph{sequence} generated by the teacher \\
+Online: teacher scores each student prediction & Offline: teacher generates responses first, student SFT-learns them \\
+Loss: KL divergence of teacher vs.\ student distributions & Loss: cross-entropy (next-token prediction on teacher's sequences) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{defbox}
+
+\begin{defbox}[R1-Distill: Offline Reasoning Distillation]
+\textbf{Step 1 (offline):} Use R1 (teacher, 671B) to generate complete responses including \texttt{<think>...</think>} reasoning traces for a set of prompts.
+
+\textbf{Step 2 (training):} Fine-tune a smaller student model (e.g., LLaMA 3-8B, Qwen-7B) via standard SFT on these (prompt, full-response) pairs. The student learns to mimic the entire reasoning sequence.
+
+This is ``distillation'' in the broader sense: transferring reasoning ability from a large model to a small one via its outputs.
+\end{defbox}
+
+\begin{notebox}[Why Distillation $>$ RL from Scratch at Small Scale]
+At small model sizes (7B--14B parameters), directly applying GRPO with verifiable rewards produces much weaker reasoning than distilling from R1. Why:
+\begin{itemize}[leftmargin=1.5em]
+  \item Small models have limited capacity to discover effective reasoning strategies from scratch through RL exploration.
+  \item The teacher's reasoning traces provide rich, complete demonstrations that SFT can learn efficiently.
+  \item RL from scratch requires many rollouts to discover good solutions; small models waste much of this compute on unhelpful exploration.
+\end{itemize}
+\textbf{Empirical result:} R1-Distill-7B is competitive with o1-mini on several benchmarks; much better than training a 7B model with RL from scratch.
+\end{notebox}
+
+\newpage
+%=============================================================================
+\section{Related Concepts You Should Also Know}
+%=============================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Test-Time Compute Scaling:} The phenomenon that allocating more inference-time compute (more reasoning tokens) improves performance. Analogous to training-time scaling laws. Sometimes called ``inference scaling.'' Key result: reasoning models with 8$\times$ more compute can match models with 10$\times$ more parameters on some benchmarks.
+
+  \item \textbf{REINFORCE vs.\ GRPO vs.\ PPO:} REINFORCE uses the raw return (reward) as the advantage, with no baseline. High variance. GRPO uses the group-mean-subtracted reward as the advantage --- a natural baseline that reduces variance without needing a value function. PPO uses the GAE baseline from a jointly trained value function --- lower variance but requires the extra model.
+
+  \item \textbf{Process Reward Models (PRMs):} Instead of rewarding only the final answer (Outcome Reward Model, ORM), PRMs reward correctness at each reasoning step. PRMs can provide denser training signals but are more expensive to collect labels for (each reasoning step must be labeled, not just the final answer).
+
+  \item \textbf{Self-Play and Outcome-Based RL:} GRPO with verifiable rewards is a form of self-play where the model generates its own training data (completions) and learns from their correctness. This is how AlphaGo-style systems work, adapted to language.
+
+  \item \textbf{Search-Based Inference (MCTS for LLMs):} Some approaches use Monte Carlo Tree Search at inference time to explore the reasoning tree and select high-reward paths. More expensive than sampling but can find better solutions.
+
+  \item \textbf{``Aha Moment'' in R1-Zero:} During R1-Zero's RL training, the researchers observed the model spontaneously develop self-checking behavior (``wait, let me reconsider''), even without being taught to do so. This is interpreted as an emergent behavior arising from the RL optimization incentive.
+
+  \item \textbf{Budget Forcing (s1 paper, Muennighoff et al., 2025):} A simple approach to test-time compute scaling: when the model generates an end-of-thinking token, inject ``Wait'' to force it to continue reasoning. This can improve pass@1 with minimal engineering overhead.
+
+  \item \textbf{Latent (Continuous) Chain-of-Thought:} Instead of reasoning in discrete text tokens, have the model reason in its hidden-state space. The reasoning ``tokens'' are continuous vectors rather than words. More compact and potentially more expressive. Active area of research (Hao et al., 2024; ongoing).
+
+  \item \textbf{SWE-bench Verified:} A cleaner version of SWE-bench where problem statements have been human-validated for unambiguity. Important for reliable benchmarking of code reasoning.
+
+  \item \textbf{Overfitting to Reasoning Benchmarks:} As with general benchmarks (Lecture 4), models can overfit to reasoning benchmarks if trained on similar problems. Valid reasoning evaluation requires held-out problem distributions not seen during RL training.
+\end{enumerate}
+
+\newpage
+%=============================================================================
+\section{Build Projects}
+%=============================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Pass@k Estimator and Temperature Analysis} \textit{(2--3 hours, good signal)}\\
+  Using a small open-source model (e.g., CodeLlama-7B or Qwen-Coder-7B) and a subset of HumanEval (20 problems), implement the pass@k estimator from scratch using the exact unbiased formula derived in class. Generate $n=50$ solutions per problem at temperatures $T \in \{0, 0.2, 0.4, 0.8, 1.2\}$. Plot pass@k curves ($k \in \{1, 5, 10, 20\}$) for each temperature. Verify empirically that moderate temperature maximizes pass@k for large $k$. This is a complete, self-contained experiment that tests your understanding of both the metric and temperature's role.
+
+  \item \textbf{GRPO from Scratch on a Math Task} \textit{(6--10 hours, very high signal)}\\
+  Implement GRPO on a small (1B--3B) language model for a simple math task (e.g., single-digit arithmetic, modular arithmetic). Key components: (a) generate $G=4$ completions per prompt, (b) compute verifiable reward (exact answer match), (c) compute group-relative advantages, (d) apply the PPO-Clip objective with GRPO's group structure, (e) add KL penalty against the frozen reference model. Track: average reward, response length, pass@1. Then apply the Dr.GRPO fix (remove $1/|o_i|$) and compare length evolution. This is a direct implementation of the core algorithm from this lecture.
+
+  \item \textbf{Reasoning Distillation Pipeline} \textit{(4--6 hours, high signal)}\\
+  Using the HuggingFace TRL library and an open-source reasoning model (e.g., DeepSeek-R1-Distill-7B or Qwen2.5-Math-7B), generate reasoning traces for 500 GSM8K problems. Use the traces that produce correct answers (rejection sampling). Fine-tune a smaller base model (e.g., LLaMA 3.2-3B) on these (problem, full-trace) pairs via SFT. Compare pass@1 on a held-out GSM8K split before and after distillation fine-tuning. Compare with the 3B model trained with RL from scratch (GRPO) on the same problems.
+\end{enumerate}
+
+\newpage
+%=============================================================================
+\section{Explain It Back}
+%=============================================================================
+
+\begin{enumerate}[leftmargin=2em]
+  \item Explain to a junior engineer why reasoning models need RL rather than SFT. Cover all three arguments (data availability, human vs.\ model reasoning style, verifiable rewards). Then explain why verifiable rewards are a practically important advantage --- what would you need instead if you didn't have them?
+
+  \item Derive the pass@k formula from first principles. Start by explaining why you generate $n > k$ samples, then apply the complement trick, then the sampling-without-replacement argument. Verify that when $k=1$ the formula simplifies to $c/n$.
+
+  \item Explain the output-length bias in GRPO's $1/|o_i|$ normalization. Walk through a concrete example: suppose you have two incorrect completions, one 10 tokens long and one 100 tokens long. How does the gradient magnitude for each token differ between the two, and why does this incentivize the model to generate longer outputs?
+
+  \item Describe the DeepSeek R1 training pipeline in 5 sentences or fewer (one per stage). For each stage, state what data is used, what the training objective is, and what problem it solves.
+\end{enumerate}
+
+\newpage
+%=============================================================================
+\section{Interview Practice Questions \& Answers}
+%=============================================================================
+
+\begin{notebox}[L1 --- What is GRPO and how does its advantage estimation differ from PPO?]
+\textbf{Answer:} GRPO (Group Relative Policy Optimization) is an RL algorithm for LLM training that avoids the value function required by PPO. For a given prompt, GRPO samples $G$ completions, computes a reward for each, and defines the advantage of completion $i$ as $(r_i - \mu_G) / \sigma_G$ --- how many standard deviations above or below the group mean its reward is. This group-relative advantage replaces the value-function-based GAE in PPO. The benefit: GRPO needs only 3 models (policy, reward, reference) vs.\ PPO's 4 (adds a value model trained jointly with the policy). The tradeoff: GRPO requires more completions per prompt (sampling group-level variance as the baseline), while PPO amortizes the baseline across the entire training distribution via the value function.
+\end{notebox}
+
+\begin{notebox}[L1 --- Why are verifiable rewards important for reasoning RL?]
+\textbf{Answer:} Standard preference-tuning RLHF requires training a reward model (RM) from human preference labels. This involves two stages (RM training, then RL), requires tens of thousands of human labels, and the RM itself is imperfect (reward hacking). For coding and math reasoning, correctness is verifiable automatically: code either passes test cases or it doesn't; a math answer either matches the ground truth or it doesn't. This eliminates the need for a reward model entirely, making the reward signal (a) free to compute, (b) perfectly accurate (no reward hacking from RM imperfections), and (c) available at unlimited scale (generate as many problems as needed).
+\end{notebox}
+
+\begin{notebox}[L2 --- Explain the output-length inflation problem in GRPO and how DAPO addresses it.]
+\textbf{Answer:} The GRPO loss sums per-token objectives weighted by $1/|o_i|$, where $|o_i|$ is the length of completion $i$. A token in a short bad completion receives weight $1/10$ (for a 10-token output) vs.\ $1/100$ for the same quality token in a 100-token output. Since the optimizer tries to reduce the probability of tokens with negative advantage, it applies 10$\times$ stronger downward pressure on the short bad completion than the long one. This makes long incorrect completions ``cheaper'' to produce than short ones, biasing the policy toward longer outputs even when they're wrong. Empirically, this causes response length to keep growing throughout RL training even after performance plateaus. DAPO addresses this by replacing $1/|o_i|$ with a global normalization constant (total tokens in the batch), so every token regardless of completion length gets equal weight.
+\end{notebox}
+
+\begin{notebox}[L2 --- Describe the DeepSeek R1 full training pipeline and the purpose of each stage.]
+\textbf{Answer:} R1 uses a 5-stage pipeline starting from V3-Base (pre-trained MoE). Stage 2 is a small-scale cold-start SFT on human-corrected reasoning chains from R1-Zero, fixing language mixing and formatting issues. Stage 3 is GRPO with formatting + accuracy + language consistency rewards, building reasoning capability from the cleaner starting point. Stage 4 is a large-scale SFT on 600K rejection-sampled reasoning pairs (verified by rules and V3-judge) plus 200K non-reasoning pairs, making the model both highly capable at reasoning and useful as a general assistant. Stage 5 is a final GRPO pass on mixed reasoning and non-reasoning data, with helpfulness and harmlessness rewards for the non-reasoning component, ensuring the final model is safe and helpful in addition to being a strong reasoner.
+\end{notebox}
+
+\begin{notebox}[L3 --- Derive the unbiased pass@k estimator from sampling without replacement.]
+\textbf{Answer:} Generate $n$ solutions, $c$ correct and $n-c$ incorrect. Want $P(\text{at least 1 of } k \text{ randomly selected solutions is correct})$. By complementarity: $\text{pass@}k = 1 - P(\text{all } k \text{ selected are incorrect})$. The probability that the first selected is incorrect is $(n-c)/n$, the second $(n-c-1)/(n-1)$, etc., giving $\prod_{j=0}^{k-1}(n-c-j)/(n-j)$. This product equals $\binom{n-c}{k}/\binom{n}{k}$ (the numerator is the number of ways to choose $k$ failures from $n-c$ failures; the denominator is all ways to choose $k$ from $n$). So $\widehat{\text{pass@}k} = 1 - \binom{n-c}{k}/\binom{n}{k}$. When $k=1$: $1 - (n-c)/n = c/n$, which is just the fraction of correct solutions.
+\end{notebox}
+
+\begin{notebox}[L2 --- Why is distillation more effective than RL from scratch for small (7B) reasoning models?]
+\textbf{Answer:} RL from scratch on small models faces two problems: (1) the model has limited capacity to discover effective long-form reasoning strategies through random exploration --- most GRPO rollouts produce incorrect solutions, providing weak learning signal; (2) the policy must simultaneously learn \emph{how} to reason (chain structure, reflection, backtracking) and \emph{what} the correct reasoning looks like for each problem, making the RL optimization landscape difficult to navigate. Distillation bypasses both issues: the teacher (R1) provides complete, correct reasoning traces that the student SFT-learns directly. This is equivalent to giving the small model a rich curriculum of solved examples. Empirically, DeepSeek's R1-Distill-7B outperforms a 7B model trained with GRPO from scratch on most benchmarks.
+\end{notebox}
+
+\begin{notebox}[L1 --- What is test-time scaling and why does it work?]
+\textbf{Answer:} Test-time scaling is the strategy of improving model performance at inference time by generating more reasoning tokens before producing the final answer. Each reasoning token requires a full Transformer forward pass, so more reasoning tokens = more computation applied to the problem. This works because: (1) hard problems can be decomposed into sub-problems each of which may match training examples, (2) more compute allows the model to detect and correct intermediate errors (self-reflection), and (3) the model can explore multiple reasoning paths and select the most consistent one. In practice, reasoning models can match or exceed larger dense models on reasoning tasks by spending more inference-time compute, making it possible to improve performance without increasing model parameters.
+\end{notebox}
+
+\newpage
+%=============================================================================
+\section{Self-Assessment Test}
+%=============================================================================
+
+\textbf{Scoring:} 16--20 = solid mastery; 12--15 = revisit weak spots; $<$12 = re-study.
+
+\subsection*{Multiple Choice (1 point each)}
+
+\textbf{Q1.} What is the key difference between GRPO and PPO in terms of models needed?\\
+(a) GRPO needs 5 models; PPO needs 3\quad
+(b) GRPO eliminates the value model; PPO requires it\quad
+(c) GRPO requires a reward model; PPO does not\quad
+(d) There is no difference
+
+\textbf{Q2.} Pass@k with $k=1$ and $n=20$ samples, 4 of which are correct, equals:\\
+(a) 4/20 = 0.2\quad (b) 1 - 16/20 = 0.2\quad (c) $1 - \binom{16}{1}/\binom{20}{1} = 0.2$\quad (d) All of the above
+
+\textbf{Q3.} In R1-Zero, what was the key challenge observed after GRPO training?\\
+(a) The model refused to produce reasoning chains\quad
+(b) Reasoning chains mixed languages and had formatting issues\quad
+(c) The accuracy reward was too sparse to learn from\quad
+(d) The model became shorter in its responses
+
+\textbf{Q4.} The $1/|o_i|$ normalization in GRPO causes what problem?\\
+(a) Short correct completions are not rewarded enough\quad
+(b) Long incorrect completions are penalized less than short incorrect ones, incentivizing longer outputs\quad
+(c) The KL divergence grows unbounded\quad
+(d) The group advantage cannot be computed
+
+\textbf{Q5.} In the DeepSeek R1 pipeline, what is the purpose of Stage 2 (cold start SFT)?\\
+(a) Teach the model arithmetic from scratch\quad
+(b) Fix language mixing and formatting issues observed in R1-Zero before the main RL stage\quad
+(c) Replace the GRPO stage entirely\quad
+(d) Generate the non-reasoning SFT data
+
+\textbf{Q6.} Why is temperature $T=0$ problematic for pass@k evaluation with $k > 1$?\\
+(a) It produces very long outputs\quad
+(b) All $n$ samples are identical, providing no diversity; pass@k doesn't improve with more samples\quad
+(c) It crashes the model\quad
+(d) It underestimates pass@1
+
+\textbf{Q7.} What is Cons@k (Consensus@k)?\\
+(a) The average reward across $k$ completions\quad
+(b) The majority-vote answer among $k$ generations\quad
+(c) The pass@k estimator with $n = k$\quad
+(d) The number of successful completions in $k$ tries
+
+\textbf{Q8.} R1-Distill outperforms RL-from-scratch at small model sizes because:\\
+(a) It uses more compute\quad
+(b) Small models can more efficiently SFT-learn rich reasoning traces from R1 than discover them through RL exploration\quad
+(c) The distillation loss is easier to optimize than GRPO\quad
+(d) It doesn't require any data
+
+\subsection*{Short Answer (1.5 points each)}
+
+\textbf{Q9.} State the unbiased pass@k formula and explain in one sentence what ``sampling without replacement'' has to do with it.
+
+\textbf{Q10.} What are the two reward signals used in GRPO-based reasoning RL training? Why is no separate reward model needed?
+
+\textbf{Q11.} Explain the group-relative advantage in GRPO. How many completions are needed per prompt, and what is the advantage formula?
+
+\textbf{Q12.} What is rejection sampling in the context of the R1 training pipeline, and what is it used for?
+
+\textbf{Q13.} How does reasoning distillation (R1-Distill) differ from the KD-style distillation covered in Lecture 2?
+
+\textbf{Q14.} Explain budget forcing. Under what circumstances would you use it?
+
+\subsection*{Scenario (2 points)}
+
+\textbf{Q15.} Your team wants to build a coding assistant that solves competitive programming problems (CodeForces difficulty). You have a pre-trained 70B LLM (instruction-tuned, but not reasoning-tuned), access to CodeForces problems with test cases, and 8 A100-80GB GPUs. Describe a complete training approach to make this model competitive on CodeForces using RL. Cover: (a) choice of RL algorithm (GRPO or PPO) and why, (b) reward design, (c) training data sourcing, (d) how you would evaluate progress (metrics and methodology), (e) one practical concern about the training process and how you'd mitigate it.
+
+\newpage
+\subsection*{Answer Key}
+
+\textbf{Q1.} (b) GRPO eliminates the value function model, requiring 3 models; PPO requires 4.
+
+\textbf{Q2.} (d) All of the above are equivalent expressions of $c/n = 4/20 = 0.2$.
+
+\textbf{Q3.} (b) R1-Zero's reasoning chains sometimes mixed languages (e.g., Chinese and English) and had formatting/readability issues.
+
+\textbf{Q4.} (b) Tokens in long incorrect completions get smaller per-token gradient magnitude (weight $= 1/|o_i|$) than tokens in short incorrect completions, so the model learns that longer bad outputs are less ``bad.''
+
+\textbf{Q5.} (b) Cold start SFT on human-corrected reasoning chains fixes the language mixing and formatting problems from R1-Zero before the main RL training stage.
+
+\textbf{Q6.} (b) With $T=0$, all $n$ generated solutions are identical (deterministic), so $c$ is either $n$ (if the greedy answer is correct) or 0. There is no diversity, and pass@k equals pass@1 for all $k$.
+
+\textbf{Q7.} (b) Cons@k returns the answer that appears most frequently (majority vote) across $k$ generated solutions.
+
+\textbf{Q8.} (b) At small model sizes, RL exploration is inefficient --- the model rarely finds correct solutions on its own. Distillation from R1's rich correct traces provides dense supervision.
+
+\textbf{Q9.} $\widehat{\text{pass@}k} = 1 - \binom{n-c}{k}/\binom{n}{k}$, where $n$ = total samples, $c$ = correct samples. The sampling-without-replacement connection: the denominator $\binom{n}{k}$ counts all ways to select $k$ from $n$ samples; the numerator $\binom{n-c}{k}$ counts ways to select $k$ from only the $n-c$ incorrect samples; their ratio is the probability that a random $k$-subset contains no correct solutions.
+
+\textbf{Q10.} Reward 1: formatting reward (checks for \texttt{<think>...</think>} and \texttt{<answer>...</answer>} delimiters). Reward 2: accuracy reward (code passes all test cases; math answer matches ground truth). No separate reward model is needed because correctness is deterministically and automatically verifiable from the problem specification.
+
+\textbf{Q11.} For each prompt, sample $G$ completions (typically $G \in \{4, 8, 16\}$). Compute reward $r_i$ for each. The group-relative advantage for completion $i$ is: $\hat{A}_i = (r_i - \mu_G)/\sigma_G$ where $\mu_G = \frac{1}{G}\sum r_j$ and $\sigma_G$ is the group standard deviation.
+
+\textbf{Q12.} Rejection sampling: generate many candidate responses using the current model checkpoint, verify them automatically (test cases for code, answer comparison for math, or LLM judge for general quality), and keep only the verified-correct ones for the SFT dataset. Used in Stage 4 of R1's pipeline to create 600K high-quality reasoning SFT pairs.
+
+\textbf{Q13.} Lecture 2 KD: teacher and student run simultaneously; student minimizes KL between its token distribution and the teacher's at each position; online process. R1-Distill: teacher generates complete responses offline first; student then SFT-learns to predict those complete sequences via standard next-token prediction; offline process. R1-Distill transfers complete reasoning strategy (including think tokens); KD transfers the probability distribution at each token position.
+
+\textbf{Q14.} Budget forcing: inject ``Wait'' (or similar) tokens when the model tries to end its reasoning chain, forcing it to continue. Used when: (a) the default reasoning budget is too short for a hard problem, (b) you want to allocate more inference compute to improve accuracy at the cost of latency, (c) evaluating how much performance can be extracted with extended reasoning.
+
+\textbf{Q15.} (a) \textbf{GRPO.} Reasons: no value function needed (3 models vs.\ 4 --- critical with only 8 GPUs), verifiable rewards (test cases) eliminate need for learned RM, and GRPO is the standard for reasoning RL. (b) \textbf{Reward:} binary accuracy reward (all test cases pass = 1, else 0) + formatting reward (if using think tokens). No RM needed. Apply DAPO fix (remove $1/|o_i|$) to prevent output length inflation. (c) \textbf{Training data:} CodeForces problems with public test cases + hidden test cases from a local judge. Source: CodeForces public API, filtered by difficulty rating. (d) \textbf{Evaluation:} pass@1 on a held-out set of CodeForces problems not used in training. Use $T=0.8$ for pass@k with $k>1$. Track: pass@1, pass@5, average response length, average reward per iteration. (e) \textbf{Practical concern:} Output length inflation --- the model generates progressively longer (but not more correct) solutions. Mitigation: apply DAPO's global normalization (remove $1/|o_i|$); monitor average length of incorrect vs.\ correct solutions separately; if incorrect solutions remain long, add a length penalty term to the reward.
+
+\vspace{1em}
+\begin{center}
+\rule{0.5\textwidth}{0.4pt}\\[6pt]
+{\small\textit{End of Study Guide --- Lecture 6}}\\[4pt]
+{\small Source: Stanford CME 295, Fall 2025. Afshine \& Shervine Amidi.}
+\end{center}
+
+\end{document}
